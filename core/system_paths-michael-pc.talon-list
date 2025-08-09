@@ -1,0 +1,16 @@
+list: user.system_paths
+hostname: michael-pc
+-
+user: /home/michael
+desktop: /home/michael/Desktop
+desk: /home/michael/Desktop
+documents: /home/michael/Documents
+docks: /home/michael/Documents
+downloads: /home/michael/Downloads
+music: /home/michael/Music
+pictures: /home/michael/Pictures
+videos: /home/michael/Videos
+talon home: /home/michael/.talon
+talon recordings: /home/michael/.talon/recordings
+talon user: /home/michael/.talon/user
+home: /home/michael

@@ -1,0 +1,64 @@
+Spoken form, Cursorless identifier
+append, addSelection
+append post, addSelectionAfter
+append pre, addSelectionBefore
+bottom, scrollToBottom
+break, breakLine
+break point, toggleLineBreakpoint
+bring, replaceWithTarget
+call, callAsFunction
+carve, cutToClipboard
+center, scrollToCenter
+change, clearAndSetSelection
+chuck, remove
+clone, insertCopyAfter
+clone up, insertCopyBefore
+comment, toggleLineComment
+copy, copyToClipboard
+crown, scrollToTop
+decrement, decrement
+dedent, outdentLine
+define, revealDefinition
+drink, editNewLineBefore
+drop, insertEmptyLineBefore
+extract, extractVariable
+flash, flashTargets
+float, insertEmptyLineAfter
+fold, foldRegion
+follow, followLink
+follow split, followLinkAside
+format, applyFormatter
+git accept, gitAccept
+git revert, gitRevert
+git stage, gitStage
+git unstage, gitUnstage
+give, deselect
+highlight, highlight
+hover, showHover
+increment, increment
+indent, indentLine
+inspect, showDebugHover
+join, joinLines
+move, moveToTarget
+paste, pasteFromClipboard
+phones, nextHomophone
+post, setSelectionAfter
+pour, editNewLineAfter
+pre, setSelectionBefore
+puff, insertEmptyLinesAround
+quick fix, showQuickFix
+reference, showReferences
+rename, rename
+repack, rewrap
+reverse, reverseTargets
+scout, findInDocument
+scout all, findInWorkspace
+shuffle, randomizeTargets
+snip, insertSnippet
+snip make, generateSnippet
+sort, sortTargets
+swap, swapTargets
+take, setSelection
+type deaf, revealTypeDefinition
+unfold, unfoldRegion
+wrap, wrapWithPairedDelimiter
