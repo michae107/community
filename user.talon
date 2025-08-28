@@ -4,4 +4,10 @@ git ad:
     key(enter)
     insert("git status")
     key(enter)
+git status:
+    insert("git status")
+    key(enter)
 git commit: insert("git commit -m \"")
+git push: 
+    insert("git push")
+    key(enter)
