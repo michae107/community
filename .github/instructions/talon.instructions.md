@@ -85,14 +85,3 @@ git_command: insert("git status")
 2. **Missing separator**: Forgetting the `-` line between context and commands
 3. **Comments in wrong place**: Comments between `app:` and `tag():` can cause parsing errors
 4. **Incorrect app names**: Use exact app names (check Talon logs for correct names)
-
-## VS Code Terminal Setup
-
-To use window title matching for VS Code terminal, add this to VS Code settings.json:
-```json
-{
-    "terminal.integrated.tabs.title": "focus:[Terminal]"
-}
-```
-
-This allows targeting VS Code terminals specifically with `win.title: /focus:\[Terminal\]/`.

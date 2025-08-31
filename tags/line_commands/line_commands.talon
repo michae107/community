@@ -1,9 +1,9 @@
 tag: user.line_commands
 -
 #this defines some common line commands. More may be defined that are ide-specific.
-lend:
-    user.deprecate_command("2024-07-30", "lend", "go line end | tail")
-    edit.line_end()
+#lend:
+#   user.deprecate_command("2024-07-30", "lend", "go line end | tail")
+#  edit.line_end()
 bend:
     user.deprecate_command("2024-07-30", "bend", "go line start | head")
     edit.line_start()

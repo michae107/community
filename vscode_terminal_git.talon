@@ -20,3 +20,9 @@ git commit:
 git push: 
     insert("git push")
     key(enter)
+git pull: 
+    insert("git pull")
+    key(enter)
+git if:
+    insert("git diff")
+    key(enter)
