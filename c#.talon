@@ -4,4 +4,7 @@ win.title: /:*+.cs/
 tag(): terminal
 
 godot export:
-    insert("[Export] ")
+    insert("[Export] public ")
+
+override:
+    insert("public override ")
