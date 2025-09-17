@@ -23,6 +23,7 @@ git push:
 git pull: 
     insert("git pull")
     key(enter)
+
 git if:
     insert("git diff")
     key(enter)
@@ -40,7 +41,7 @@ perforce difference:
     key(enter)
 
 perforce submit:
-    insert("p4 submit -d /"/"")
+    insert("p4 submit -d \"\"")
     key(left)
 
 
