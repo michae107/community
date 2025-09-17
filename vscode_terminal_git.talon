@@ -26,3 +26,22 @@ git pull:
 git if:
     insert("git diff")
     key(enter)
+
+perforce reconcile:
+    insert("p4 reconcile -m && p4 opened")
+    key(enter)
+
+perforce opened:
+    insert("p4 opened")
+    key(enter)
+
+perforce difference:
+    insert("p4 diff")
+    key(enter)
+
+perforce submit:
+    insert("p4 submit -d /"/"")
+    key(left)
+
+
+
