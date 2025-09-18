@@ -44,5 +44,7 @@ perforce submit:
     insert("p4 submit -d \"\"")
     key(left)
 
-
+perforce sink:
+    insert("p4 sync")
+    key(enter)
 
