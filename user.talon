@@ -9,3 +9,9 @@ bracer:
     key(enter)
 Boole:
     insert("bool")
+not empty:
+    insert(" != null")
+is empty:
+    insert(" == null")
+paste:
+    key(ctrl-v)

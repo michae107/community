@@ -10,7 +10,7 @@ tag(): user.code_operators_math
 settings():
     user.code_public_variable_formatter = "DASH_SEPARATED"
 
-block: user.code_block()
+#block: user.code_block()
 
 attribute [<user.text>]:
     name = user.formatted_text(text or "", "DASH_SEPARATED")
