@@ -40,6 +40,10 @@ perforce difference:
     insert("p4 diff")
     key(enter)
 
+perforce resolve:
+    insert("p4 resolve")
+    key(enter)
+
 perforce submit:
     insert("p4 submit -d \"\"")
     key(left)
