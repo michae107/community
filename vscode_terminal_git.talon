@@ -24,6 +24,10 @@ git pull:
     insert("git pull")
     key(enter)
 
+git auto push:
+    insert("git add . && git commit -m \"update\" && git push")
+    key(enter)
+
 git if:
     insert("git diff")
     key(enter)
