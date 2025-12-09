@@ -147,10 +147,10 @@ toggle mark: user.vscode("bookmarks.toggle")
 go next mark: user.vscode("bookmarks.jumpToNext")
 go last mark: user.vscode("bookmarks.jumpToPrevious")
 
-close other tabs: user.vscode("workbench.action.closeOtherEditors")
-close all tabs: user.vscode("workbench.action.closeAllEditors")
-close tabs way right: user.vscode("workbench.action.closeEditorsToTheRight")
-close tabs way left: user.vscode("workbench.action.closeEditorsToTheLeft")
+tab close others: user.vscode("workbench.action.closeOtherEditors")
+tab close all: user.vscode("workbench.action.closeAllEditors")
+tab close right: user.vscode("workbench.action.closeEditorsToTheRight")
+tab close left: user.vscode("workbench.action.closeEditorsToTheLeft")
 
 # Folding
 fold that: user.vscode("editor.fold")
@@ -206,7 +206,7 @@ pull request: user.vscode("pr.create")
 change next: user.vscode("chatEditor.action.navigateNext")
 change last: user.vscode("chatEditor.action.navigatePrevious")
 # Accept/reject individual changes
-change accept: user.vscode("chatEditor.action.acceptHunk")
+.
 change reject: user.vscode("chatEditor.action.undoHunk")
 change accept all: key(ctrl-enter)
 
