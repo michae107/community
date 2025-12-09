@@ -199,10 +199,12 @@ fold seven: user.vscode("editor.foldLevel7")
 #git unstage: user.vscode("git.unstage")
 #git unstage all: user.vscode("git.unstageAll")
 pull request: user.vscode("pr.create")
-# Use keyboard shortcuts because VSCode relies on when clause contexts to choose the appropriate
-# action: https://code.visualstudio.com/api/references/when-clause-contexts
-change next: key(alt-f5)
-change last: key(shift-alt-f5)
+# Navigate changes in chat editing (AI-generated code changes)
+change next: user.vscode("chatEditor.action.navigateNext")
+change last: user.vscode("chatEditor.action.navigatePrevious")
+# Accept/reject individual changes
+change accept: user.vscode("chatEditor.action.acceptHunk")
+change reject: user.vscode("chatEditor.action.undoHunk")
 
 # Testing
 test run: user.vscode("testing.runAtCursor")
