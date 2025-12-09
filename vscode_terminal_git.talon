@@ -36,8 +36,16 @@ perforce opened:
     insert("p4 opened")
     key(enter)
 
+perforce opened file:
+    insert("p4 opened > ~/Downloads/opened ; code ~/Downloads/opened")
+    key(enter)
+
 perforce difference:
     insert("p4 diff")
+    key(enter)
+
+perforce difference file:
+    insert("p4 diff > ~/Downloads/diff ; code ~/Downloads/diff")
     key(enter)
 
 perforce resolve:

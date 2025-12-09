@@ -43,6 +43,7 @@ panel output: user.vscode("workbench.panel.output.focus")
 panel problems: user.vscode("workbench.panel.markers.view.focus")
 panel switch: user.vscode("workbench.action.togglePanel")
 panel terminal: user.vscode("workbench.action.terminal.focus")
+panel chat: user.vscode("workbench.action.chat.open")
 focus editor: user.vscode("workbench.action.focusActiveEditorGroup")
 
 # Settings
