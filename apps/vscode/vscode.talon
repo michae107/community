@@ -44,6 +44,9 @@ panel problems: user.vscode("workbench.panel.markers.view.focus")
 panel switch: user.vscode("workbench.action.togglePanel")
 panel terminal: user.vscode("workbench.action.terminal.focus")
 panel chat: user.vscode("workbench.action.chat.open")
+chat focus: user.vscode_focus_chat_response()
+chat stop: key(ctrl-escape)
+
 focus editor: user.vscode("workbench.action.focusActiveEditorGroup")
 
 # Settings
@@ -205,6 +208,7 @@ change last: user.vscode("chatEditor.action.navigatePrevious")
 # Accept/reject individual changes
 change accept: user.vscode("chatEditor.action.acceptHunk")
 change reject: user.vscode("chatEditor.action.undoHunk")
+change accept all: key(ctrl-enter)
 
 # Testing
 test run: user.vscode("testing.runAtCursor")

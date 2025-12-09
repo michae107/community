@@ -1,4 +1,4 @@
-from talon import Context, Module, actions, app
+from talon import Context, Module, actions, app, ctrl, ui
 
 is_mac = app.platform == "mac"
 
@@ -436,3 +436,14 @@ class UserActions:
 
     def move_cursor_to_next_snippet_stop():
         actions.user.vscode("jumpToNextSnippetPlaceholder")
+
+    def vscode_focus_chat_response():
+        """Open VS Code chat and click in the response area to enable scrolling"""
+        actions.user.vscode("workbench.action.chat.open")
+        actions.sleep("200ms")
+        # Click in the chat response area (top-right of window, down and left a bit)
+        rect = ui.active_window().rect
+        x = rect.right - 150
+        y = rect.top + 150
+        ctrl.mouse_move(x, y)
+        ctrl.mouse_click(button=0)
