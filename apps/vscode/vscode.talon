@@ -206,7 +206,7 @@ pull request: user.vscode("pr.create")
 change next: user.vscode("chatEditor.action.navigateNext")
 change last: user.vscode("chatEditor.action.navigatePrevious")
 # Accept/reject individual changes
-.
+change accept: user.vscode("chatEditor.action.acceptHunk")
 change reject: user.vscode("chatEditor.action.undoHunk")
 change accept all: key(ctrl-enter)
 

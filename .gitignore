@@ -9,6 +9,7 @@ __pycache__
 .vscode/settings.json
 .DS_Store
 *.bak
+.secret
 # Emacs (from https://github.com/github/gitignore/blob/main/Global/Emacs.gitignore)
 *~
 \#*\#
