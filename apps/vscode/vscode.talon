@@ -43,9 +43,8 @@ panel output: user.vscode("workbench.panel.output.focus")
 panel problems: user.vscode("workbench.panel.markers.view.focus")
 panel switch: user.vscode("workbench.action.togglePanel")
 panel terminal: user.vscode("workbench.action.terminal.focus")
-#panel chat: user.vscode("workbench.action.chat.open")
-panel chat:
-    key(ctrl-escape)
+panel chat: user.vscode("workbench.action.chat.open")
+chat new: key(ctrl-n)
 chat focus: user.vscode_focus_chat_response()
 chat stop: key(ctrl-escape)
 
