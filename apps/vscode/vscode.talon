@@ -45,13 +45,11 @@ panel switch: user.vscode("workbench.action.togglePanel")
 panel terminal: user.vscode("workbench.action.terminal.focus")
 #panel chat: user.vscode("workbench.action.chat.open")
 panel chat:
-    key(ctrl-shift-p)
-    insert("Claude Code")
-    key(enter)
+    key(ctrl-escape)
 chat focus: user.vscode_focus_chat_response()
 chat stop: key(ctrl-escape)
 
-focus editor: user.vscode("workbench.action.focusActiveEditorGroup")
+focus editor: user.vscode("workbench.action.focusFirstEditorGroup")
 
 # Settings
 show settings: user.vscode("workbench.action.openGlobalSettings")
@@ -155,6 +153,8 @@ tab close others: user.vscode("workbench.action.closeOtherEditors")
 tab close all: user.vscode("workbench.action.closeAllEditors")
 tab close right: user.vscode("workbench.action.closeEditorsToTheRight")
 tab close left: user.vscode("workbench.action.closeEditorsToTheLeft")
+tab pin: user.vscode("workbench.action.pinEditor")
+tab unpin: user.vscode("workbench.action.unpinEditor")
 
 # Folding
 fold that: user.vscode("editor.fold")
