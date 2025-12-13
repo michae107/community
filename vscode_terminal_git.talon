@@ -14,6 +14,9 @@ git ad:
 git status:
     insert("git status")
     key(enter)
+less git status:
+    insert("git status | less")
+    key(enter)
 git commit: 
     insert("git commit -m \"\"")
     key(left)
