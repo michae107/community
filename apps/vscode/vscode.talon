@@ -43,8 +43,8 @@ panel output: user.vscode("workbench.panel.output.focus")
 panel problems: user.vscode("workbench.panel.markers.view.focus")
 panel switch: user.vscode("workbench.action.togglePanel")
 panel terminal: user.vscode("workbench.action.terminal.focus")
-#panel chat: user.vscode("workbench.action.chat.open")
-panel chat:
+panel chat: user.vscode("workbench.action.chat.open")
+panel cloud:
     user.vscode("workbench.action.showCommands")
     insert("Claude")
     key(enter)
@@ -110,6 +110,7 @@ save ugly: user.vscode("workbench.action.files.saveWithoutFormatting")
 # Language Features
 suggest show: user.vscode("editor.action.triggerSuggest")
 hint show: user.vscode("editor.action.triggerParameterHints")
+hover show: user.vscode("editor.action.showHover")
 definition show: user.vscode("editor.action.revealDefinition")
 definition peek: user.vscode("editor.action.peekDefinition")
 definition side: user.vscode("editor.action.revealDefinitionAside")
