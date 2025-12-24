@@ -29,7 +29,7 @@ class AppActions:
         actions.key("alt-f4")
 
     def window_hide():
-        actions.key("alt-space n")
+        actions.key("super-pagedown")
 
     def window_hide_others():
         actions.key("win-d alt-tab")
