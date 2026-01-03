@@ -352,11 +352,28 @@ class Actions:
     def switcher_focus_app(app: ui.App):
         """Focus application and wait until switch is made"""
         app.focus()
+
         t1 = time.perf_counter()
         while ui.active_app() != app:
-            if time.perf_counter() - t1 > 1:
-                raise RuntimeError(f"Can't focus app: {app.name}")
-            actions.sleep(0.1)
+            elapsed = time.perf_counter() - t1
+            if elapsed > 0.5:
+                # Fallback for Linux: use wmctrl to bypass focus stealing prevention
+                windows = app.windows()
+                if windows:
+                    try:
+                        subprocess.run(["wmctrl", "-a", windows[0].title], check=False, timeout=2)
+                    except Exception:
+                        pass
+                    # Wait a bit more for focus
+                    t2 = time.perf_counter()
+                    while ui.active_app() != app:
+                        if time.perf_counter() - t2 > 0.5:
+                            raise RuntimeError(f"Can't focus app: {app.name}")
+                        actions.sleep(0.05)
+                    return
+                else:
+                    raise RuntimeError(f"Can't focus app: {app.name}")
+            actions.sleep(0.05)
 
     def switcher_focus_last():
         """Focus last window/application"""

@@ -7,4 +7,4 @@ godot export:
     insert("[Export] public ")
 
 override:
-    insert("public override ")
+    insert("public override ")!

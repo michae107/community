@@ -19,3 +19,5 @@ copy paste:
     edit.copy()
     sleep(50ms)
     edit.paste()
+
+claude: insert("claude\n")

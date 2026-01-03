@@ -8,3 +8,9 @@ claude danger:
     insert("claudeCode.allowDangerouslySkipPermissions")
     sleep(200ms)
     key(enter)
+
+build:
+    user.vscode("workbench.action.tasks.runTask")
+    sleep(200ms)
+    insert("build")
+    key(enter)
