@@ -1,0 +1,73 @@
+{
+  "name": "git-inline-changes",
+  "displayName": "Git Inline Changes",
+  "description": "Highlights changed lines with a green background and colors changed file names green in the explorer and file tree.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Git Inline Changes",
+      "properties": {
+        "gitInlineChanges.addedColor": {
+          "type": "string",
+          "default": "rgba(80, 180, 255, 0.12)",
+          "description": "Background color for added/modified lines"
+        },
+        "gitInlineChanges.showInlineHighlights": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show green background on changed lines in the editor"
+        },
+        "gitInlineChanges.showFileDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show green file names for changed files in the explorer"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "gitInlineChanges.openAllChanged",
+        "title": "Git Inline Changes: Open All Changed Files"
+      },
+      {
+        "command": "gitInlineChanges.showChangedInTree",
+        "title": "Git Inline Changes: Show Changed Files in Tree"
+      }
+    ],
+    "colors": [
+      {
+        "id": "gitInlineChanges.changedFileForeground",
+        "description": "Color for changed file names in explorer/file tree",
+        "defaults": {
+          "dark": "#5ac8fa",
+          "light": "#0a84ff",
+          "highContrast": "#6ad0ff",
+          "highContrastLight": "#0060cc"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}

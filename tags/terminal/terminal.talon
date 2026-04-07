@@ -21,3 +21,4 @@ copy paste:
     edit.paste()
 
 claude: insert("claude\n")
+cloud dangerous: insert("clauded\n")

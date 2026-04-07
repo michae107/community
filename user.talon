@@ -1,3 +1,5 @@
+more: edit.page_down()
+less: edit.page_up()
 semi: insert(";")
 lend:
     key(end)
