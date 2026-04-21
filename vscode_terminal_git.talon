@@ -6,6 +6,9 @@ win.title: /focus:\[Terminal\]/
 -
 tag(): terminal
 
+more: user.vscode("workbench.action.terminal.scrollDownPage")
+less: user.vscode("workbench.action.terminal.scrollUpPage")
+
 git ad:
     insert("git add .")
     key(enter)
