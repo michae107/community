@@ -20,7 +20,6 @@ export class GitFileDecorationProvider implements vscode.FileDecorationProvider 
 
         const allChanges = [
             ...repo.state.workingTreeChanges,
-            ...repo.state.indexChanges,
             ...(repo.state.untrackedChanges || []),
         ];
 

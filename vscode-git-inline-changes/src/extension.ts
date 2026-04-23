@@ -24,9 +24,10 @@ function isNewFile(change: Change): boolean {
 }
 
 function getAllChanges(repo: Repository): Change[] {
+    // Only unstaged: working tree + untracked. Staged files (indexChanges) are
+    // intentionally excluded so large committed libraries don't flood the UI.
     return [
         ...repo.state.workingTreeChanges,
-        ...repo.state.indexChanges,
         ...(repo.state.untrackedChanges || []),
     ];
 }

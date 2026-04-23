@@ -1,6 +1,9 @@
 app: vscode
 -
 
+look right: user.vscode_scroll_horizontal("right", 40)
+look left: user.vscode_scroll_horizontal("left", 40)
+
 # Claude dangerous permissions toggle
 claude danger:
     user.vscode("workbench.action.openSettings")
