@@ -8,6 +8,7 @@ Originally from dweil/talon_community - modified for newapi by jcaw.
 #   platforms
 
 import logging
+import subprocess
 from typing import Dict, Optional
 
 from talon import Context, Module, actions, app, registry, settings, ui
@@ -196,6 +197,24 @@ def _move_to_screen(
 
 
 def _snap_window_helper(window, pos):
+    # Filling the whole screen: let the WM maximize. Setting an exact rect here
+    # interacts badly with size-increment hints (e.g. gnome-terminal) and frame
+    # extents, pushing the window's bottom past the screen edge.
+    if pos.left == 0 and pos.top == 0 and pos.right == 1 and pos.bottom == 1:
+        # Talon's `window.maximized = True` setter silently no-ops on KWin for
+        # some apps (e.g. gnome-terminal), so send the EWMH state change via
+        # wmctrl instead. Setting an exact rect would also misbehave: size-hint
+        # rounding pushes the bottom past the screen edge.
+        if app.platform == "linux":
+            subprocess.run(
+                ["wmctrl", "-ir", hex(window.id), "-b",
+                 "add,maximized_vert,maximized_horz"],
+                check=False,
+            )
+        else:
+            window.maximized = True
+        return
+
     screen = window.screen.visible_rect
 
     _set_window_pos(
