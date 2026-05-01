@@ -14,3 +14,5 @@ talon home: /home/michael/.talon
 talon recordings: /home/michael/.talon/recordings
 talon user: /home/michael/.talon/user
 home: /home/michael
+projects: /home/michael/projects
+talon agent: /home/michael/projects/talon-agent
