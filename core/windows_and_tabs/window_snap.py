@@ -47,6 +47,26 @@ def _set_window_pos(window, x, y, width, height):
         window.rect = ui.Rect(round(x), round(y), round(width), round(height))
 
 
+def _get_frame_extents(window):
+    """Return (left, right, top, bottom) frame extents for the given window.
+
+    Falls back to all zeros if the property is missing or unparseable.
+    """
+    try:
+        out = subprocess.run(
+            ["xprop", "-id", hex(window.id), "_NET_FRAME_EXTENTS"],
+            capture_output=True, text=True, timeout=1, check=False,
+        ).stdout
+        if "=" not in out:
+            return (0, 0, 0, 0)
+        nums = [int(n.strip()) for n in out.split("=", 1)[1].split(",")]
+        if len(nums) != 4:
+            return (0, 0, 0, 0)
+        return tuple(nums)
+    except Exception:
+        return (0, 0, 0, 0)
+
+
 def _bring_forward(window):
     current_window = ui.active_window()
     try:
@@ -217,13 +237,20 @@ def _snap_window_helper(window, pos):
 
     screen = window.screen.visible_rect
 
-    _set_window_pos(
-        window,
-        x=screen.x + (screen.width * pos.left),
-        y=screen.y + (screen.height * pos.top),
-        width=screen.width * (pos.right - pos.left),
-        height=screen.height * (pos.bottom - pos.top),
-    )
+    x = screen.x + (screen.width * pos.left)
+    y = screen.y + (screen.height * pos.top)
+    width = screen.width * (pos.right - pos.left)
+    height = screen.height * (pos.bottom - pos.top)
+
+    if app.platform == "linux":
+        # KWin's window.rect setter positions the outer frame at the
+        # requested origin but treats the size as the client size, so the
+        # outer rect overshoots by the frame extents. Shrink the size only.
+        fl, fr, ft, fb = _get_frame_extents(window)
+        width -= fl + fr
+        height -= ft + fb
+
+    _set_window_pos(window, x=x, y=y, width=width, height=height)
 
 
 class RelativeScreenPos:

@@ -9,6 +9,8 @@ os: linux
 and app.name: Org.gnome.Nautilus
 os: linux
 and app.name: Caja
+os: linux
+and app.exe: nemo
 """
 
 # Context matching
@@ -42,6 +44,10 @@ class UserActions:
     def go_forward():
         actions.key("alt-right")
 
+    # user.address
+    def address_focus():
+        actions.key("ctrl-l")
+
     # user.file_manager
     def file_manager_open_parent():
         actions.key("alt-up")
@@ -63,4 +69,4 @@ class UserActions:
         actions.key("ctrl-l")
         with clip.capture() as path:
             actions.edit.copy()
-        ui.launch(path="gnome-terminal", args=[f"--working-directory={path.get()}"])
+        ui.launch(path="konsole", args=[f"--workdir={path.get()}"])

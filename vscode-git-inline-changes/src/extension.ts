@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as cp from 'child_process';
+import * as path from 'path';
 import type { GitExtension, API, Repository, Change } from './typings/git';
 import { parseChangedLines } from './diffParser';
 import { GitFileDecorationProvider } from './fileDecorator';
@@ -30,6 +32,75 @@ function getAllChanges(repo: Repository): Change[] {
         ...repo.state.workingTreeChanges,
         ...(repo.state.untrackedChanges || []),
     ];
+}
+
+function splitGitPathOutput(output: string): string[] {
+    return output.split('\0').filter(Boolean);
+}
+
+function runGit(git: API, repo: Repository, args: string[]): Promise<string> {
+    const gitPath = git.git.path || 'git';
+    return new Promise((resolve, reject) => {
+        cp.execFile(
+            gitPath,
+            ['-C', repo.rootUri.fsPath, ...args],
+            { maxBuffer: 20 * 1024 * 1024 },
+            (err, stdout, stderr) => {
+                if (err) {
+                    reject(new Error(stderr || err.message));
+                    return;
+                }
+                resolve(stdout);
+            }
+        );
+    });
+}
+
+function isOpenableFile(filePath: string): boolean {
+    try {
+        return fs.statSync(filePath).isFile();
+    } catch {
+        return false;
+    }
+}
+
+async function getUnstagedFileUris(git: API, repo: Repository): Promise<vscode.Uri[]> {
+    const trackedOutput = await runGit(git, repo, [
+        'diff',
+        '--name-only',
+        '--diff-filter=d',
+        '-z',
+        '--',
+    ]);
+    const untrackedOutput = await runGit(git, repo, [
+        'ls-files',
+        '--others',
+        '--exclude-standard',
+        '-z',
+        '--',
+    ]);
+
+    const seen = new Set<string>();
+    const uris: vscode.Uri[] = [];
+    const relativePaths = [
+        ...splitGitPathOutput(trackedOutput),
+        ...splitGitPathOutput(untrackedOutput),
+    ];
+
+    for (const relativePath of relativePaths) {
+        const filePath = path.join(repo.rootUri.fsPath, relativePath);
+        if (seen.has(filePath)) continue;
+        seen.add(filePath);
+
+        if (!isOpenableFile(filePath)) {
+            log.appendLine(`  Skipping non-file or missing path: ${filePath}`);
+            continue;
+        }
+
+        uris.push(vscode.Uri.file(filePath));
+    }
+
+    return uris;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -98,32 +169,15 @@ async function openAllChangedFiles(git: API) {
     const allUris: vscode.Uri[] = [];
 
     for (const repo of git.repositories) {
-        const seen = new Set<string>();
-        const changes = getAllChanges(repo);
-
-        log.appendLine(`openAllChanged: ${changes.length} total changes in ${repo.rootUri.fsPath}`);
-        for (const change of changes) {
-            log.appendLine(`  change: ${change.uri.fsPath} status=${change.status}`);
-        }
-
-        for (const change of changes) {
-            // Skip deleted files
-            if (isDeleted(change)) {
-                log.appendLine(`  Skipping deleted: ${change.uri.fsPath}`);
-                continue;
+        try {
+            const uris = await getUnstagedFileUris(git, repo);
+            log.appendLine(`openAllChanged: ${uris.length} unstaged file(s) in ${repo.rootUri.fsPath}`);
+            for (const uri of uris) {
+                log.appendLine(`  unstaged: ${uri.fsPath}`);
             }
-
-            const key = change.uri.fsPath;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            // Verify the file actually exists on disk
-            if (!fs.existsSync(key)) {
-                log.appendLine(`  Skipping missing: ${key}`);
-                continue;
-            }
-
-            allUris.push(change.uri);
+            allUris.push(...uris);
+        } catch (err) {
+            log.appendLine(`openAllChanged: git file list failed for ${repo.rootUri.fsPath}: ${err}`);
         }
     }
 

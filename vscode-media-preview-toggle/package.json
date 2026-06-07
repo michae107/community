@@ -1,0 +1,47 @@
+{
+  "name": "media-preview-toggle",
+  "displayName": "Media Preview Toggle",
+  "description": "Voice-controllable audio preview for VS Code. Registers a custom editor for audio files plus a togglePlay command that play/pauses the active preview without requiring keyboard focus inside the webview.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "mediaPreviewToggle.audioPreview",
+        "displayName": "Audio Preview (voice-controllable)",
+        "selector": [
+          { "filenamePattern": "*.ogg" },
+          { "filenamePattern": "*.mp3" },
+          { "filenamePattern": "*.wav" },
+          { "filenamePattern": "*.flac" },
+          { "filenamePattern": "*.m4a" },
+          { "filenamePattern": "*.opus" }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "mediaPreviewToggle.togglePlay",
+        "title": "Media Preview: Toggle Play/Pause"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}

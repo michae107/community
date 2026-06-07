@@ -22,3 +22,5 @@ copy paste:
 
 claude: insert("claude\n")
 cloud dangerous: insert("clauded\n")
+codex: insert("codex\n")
+codex dangerous: insert("codexd\n")
