@@ -11,12 +11,14 @@ export class GitFileDecorationProvider implements vscode.FileDecorationProvider 
     private readonly _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
     readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
 
-    private changedUris = new Set<string>();
-    private repoRoot: string = '';
+    // Changed URIs keyed by repo root. Each refresh replaces only the entry for
+    // the repo it was given, so refreshing one repo (e.g. a linked worktree the
+    // git extension surfaces separately) never wipes another repo's badges.
+    private changedUrisByRepo = new Map<string, Set<string>>();
 
     refresh(repo: Repository): void {
-        this.changedUris.clear();
-        this.repoRoot = repo.rootUri.fsPath;
+        const repoRoot = repo.rootUri.fsPath;
+        const uris = new Set<string>();
 
         const allChanges = [
             ...repo.state.workingTreeChanges,
@@ -37,19 +39,29 @@ export class GitFileDecorationProvider implements vscode.FileDecorationProvider 
             }
 
             // Add the file itself
-            this.changedUris.add(vscode.Uri.file(filePath).toString());
+            uris.add(vscode.Uri.file(filePath).toString());
 
             // Walk up and add every parent folder until we hit the repo root
             let dir = path.dirname(filePath);
-            while (dir.length >= this.repoRoot.length) {
-                this.changedUris.add(vscode.Uri.file(dir).toString());
+            while (dir.length >= repoRoot.length) {
+                uris.add(vscode.Uri.file(dir).toString());
                 const parent = path.dirname(dir);
                 if (parent === dir) break;
                 dir = parent;
             }
         }
 
+        this.changedUrisByRepo.set(repoRoot, uris);
         this._onDidChangeFileDecorations.fire(undefined);
+    }
+
+    private isChanged(uri: string): boolean {
+        for (const uris of this.changedUrisByRepo.values()) {
+            if (uris.has(uri)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
@@ -58,7 +70,7 @@ export class GitFileDecorationProvider implements vscode.FileDecorationProvider 
             return undefined;
         }
 
-        if (!this.changedUris.has(uri.toString())) {
+        if (!this.isChanged(uri.toString())) {
             return undefined;
         }
 

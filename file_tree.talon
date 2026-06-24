@@ -38,3 +38,7 @@ tree current:
 tree hunt <user.letters> [for <user.text>]:
     user.run_rpc_command_and_wait("talon-filetree.findInFolder", letters)
     insert(text or "")
+# Open the tree item in your default browser via Live Preview
+tree browser <user.letters>:
+    user.run_rpc_command_and_wait("talon-filetree.openFile", letters)
+    user.vscode("livePreview.start.externalPreview.atFile")

@@ -34,16 +34,43 @@ function getAllChanges(repo: Repository): Change[] {
     ];
 }
 
+function isSameOrSubPath(parent: string, child: string): boolean {
+    const rel = path.relative(parent, child);
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+// Only repositories that live inside the open workspace folder(s). The VSCode
+// git extension also surfaces linked git worktrees (e.g. ~/worktrees/...) as
+// separate repositories; without this filter the "open/tree changed files"
+// commands pull in changes from those worktrees too.
+function reposInWorkspace(git: API): Repository[] {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) {
+        return git.repositories;
+    }
+    return git.repositories.filter(repo => {
+        const repoPath = repo.rootUri.fsPath;
+        return folders.some(folder => {
+            const folderPath = folder.uri.fsPath;
+            return isSameOrSubPath(folderPath, repoPath) || isSameOrSubPath(repoPath, folderPath);
+        });
+    });
+}
+
 function splitGitPathOutput(output: string): string[] {
     return output.split('\0').filter(Boolean);
 }
 
 function runGit(git: API, repo: Repository, args: string[]): Promise<string> {
+    return runGitInDir(git, repo.rootUri.fsPath, args);
+}
+
+function runGitInDir(git: API, cwd: string, args: string[]): Promise<string> {
     const gitPath = git.git.path || 'git';
     return new Promise((resolve, reject) => {
         cp.execFile(
             gitPath,
-            ['-C', repo.rootUri.fsPath, ...args],
+            ['-C', cwd, ...args],
             { maxBuffer: 20 * 1024 * 1024 },
             (err, stdout, stderr) => {
                 if (err) {
@@ -168,7 +195,7 @@ function initWithGit(git: API, context: vscode.ExtensionContext) {
 async function openAllChangedFiles(git: API) {
     const allUris: vscode.Uri[] = [];
 
-    for (const repo of git.repositories) {
+    for (const repo of reposInWorkspace(git)) {
         try {
             const uris = await getUnstagedFileUris(git, repo);
             log.appendLine(`openAllChanged: ${uris.length} unstaged file(s) in ${repo.rootUri.fsPath}`);
@@ -200,7 +227,7 @@ async function openAllChangedFiles(git: API) {
 async function showChangedInTree(git: API) {
     const allUris: vscode.Uri[] = [];
 
-    for (const repo of git.repositories) {
+    for (const repo of reposInWorkspace(git)) {
         const seen = new Set<string>();
         const changes = getAllChanges(repo);
 
@@ -342,8 +369,13 @@ async function updateLineDecorations(editor: vscode.TextEditor, git: API) {
 
     const repo = git.getRepository(editor.document.uri);
     if (!repo) {
-        log.appendLine(`  No repo found for: ${editor.document.uri.fsPath}`);
-        editor.setDecorations(changedLineDecoration, []);
+        // The built-in git extension only tracks repos at/under the open
+        // workspace folder. If the file lives in a folder whose .git is in a
+        // PARENT directory (e.g. you opened a subproject of a larger repo),
+        // getRepository returns undefined. Fall back to the git CLI run from
+        // the file's own directory, which resolves the enclosing repo.
+        log.appendLine(`  No API repo for: ${editor.document.uri.fsPath} — trying CLI fallback`);
+        await updateViaGitCli(editor, git);
         return;
     }
 
@@ -402,6 +434,62 @@ async function updateLineDecorations(editor: vscode.TextEditor, git: API) {
         } else {
             editor.setDecorations(changedLineDecoration, []);
         }
+    }
+}
+
+function highlightAllLines(editor: vscode.TextEditor) {
+    const ranges: vscode.Range[] = [];
+    for (let i = 0; i < editor.document.lineCount; i++) {
+        ranges.push(editor.document.lineAt(i).range);
+    }
+    editor.setDecorations(changedLineDecoration, ranges);
+}
+
+// Fallback used when the VSCode git API has no repo for the file (the file's
+// repo root is above the open workspace folder). Computes the diff with the
+// git CLI run from the file's own directory.
+async function updateViaGitCli(editor: vscode.TextEditor, git: API) {
+    const fileFsPath = editor.document.uri.fsPath;
+    const dir = path.dirname(fileFsPath);
+
+    // Confirm an enclosing repo exists; bail quietly if not.
+    try {
+        await runGitInDir(git, dir, ['rev-parse', '--is-inside-work-tree']);
+    } catch {
+        log.appendLine(`  CLI fallback: not inside a git work tree.`);
+        editor.setDecorations(changedLineDecoration, []);
+        return;
+    }
+
+    // Untracked file (new): highlight everything.
+    try {
+        const untracked = await runGitInDir(git, dir, [
+            'ls-files', '--others', '--exclude-standard', '-z', '--', fileFsPath,
+        ]);
+        if (splitGitPathOutput(untracked).length > 0) {
+            log.appendLine(`  CLI fallback: untracked, highlighting all lines.`);
+            highlightAllLines(editor);
+            return;
+        }
+    } catch (err) {
+        log.appendLine(`  CLI fallback: ls-files failed: ${err}`);
+    }
+
+    // Tracked: diff against HEAD (staged + unstaged), matching diffWithHEAD.
+    try {
+        const diff = await runGitInDir(git, dir, ['diff', 'HEAD', '--', fileFsPath]);
+        const changedLines = parseChangedLines(diff);
+        log.appendLine(`  CLI fallback: ${changedLines.length} changed line(s).`);
+        const ranges: vscode.Range[] = [];
+        for (const lineNum of changedLines) {
+            if (lineNum >= 0 && lineNum < editor.document.lineCount) {
+                ranges.push(editor.document.lineAt(lineNum).range);
+            }
+        }
+        editor.setDecorations(changedLineDecoration, ranges);
+    } catch (err) {
+        log.appendLine(`  CLI fallback: diff failed: ${err}`);
+        editor.setDecorations(changedLineDecoration, []);
     }
 }
 
