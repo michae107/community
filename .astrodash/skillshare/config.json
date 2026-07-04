@@ -1,0 +1,26 @@
+{
+  "audit": {
+    "blockSeverities": [
+      "medium",
+      "high",
+      "critical"
+    ]
+  },
+  "enabled": true,
+  "nativeMirroring": true,
+  "targets": {
+    "claude": {
+      "enabled": true
+    },
+    "codex": {
+      "enabled": true
+    },
+    "copilot": {
+      "enabled": true
+    },
+    "grok": {
+      "enabled": true
+    }
+  },
+  "version": 1
+}
