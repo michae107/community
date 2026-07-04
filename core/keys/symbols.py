@@ -67,6 +67,8 @@ symbols = [
     Symbol("@", ["at symbol", "at sign"]),
     Symbol("&", ["ampersand", "and sign"], ["amper"]),
     Symbol("-", ["hyphen"], ["minus", "dash"]),
+    Symbol("—", ["em dash"], ["emdash"]),
+    Symbol("–", ["en dash"], ["endash"]),
     Symbol("=", None, ["equals"]),
     Symbol("+", None, ["plus"]),
     Symbol("~", None, ["tilde"]),
