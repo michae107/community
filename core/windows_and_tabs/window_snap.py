@@ -67,6 +67,51 @@ def _get_frame_extents(window):
         return (0, 0, 0, 0)
 
 
+def _visible_rect_with_struts(screen):
+    """Compute the screen's usable area from panel struts.
+
+    Talon's `screen.visible_rect` on Linux returns the full screen rect,
+    ignoring panels (e.g. the plasmashell taskbar), so snapped windows get cut
+    off behind them. Read `_NET_WM_STRUT_PARTIAL` from all clients and shrink
+    the screen rect by struts that overlap it. Falls back to `visible_rect`.
+    """
+    try:
+        left, top = screen.rect.left, screen.rect.top
+        right, bot = screen.rect.right, screen.rect.bot
+        root_right = max(s.rect.right for s in ui.screens())
+        root_bot = max(s.rect.bot for s in ui.screens())
+        out = subprocess.run(
+            ["xprop", "-root", "_NET_CLIENT_LIST"],
+            capture_output=True, text=True, timeout=1, check=False,
+        ).stdout
+        if "#" not in out:
+            return screen.visible_rect
+        for wid in out.split("#", 1)[1].split(","):
+            out = subprocess.run(
+                ["xprop", "-id", wid.strip(), "_NET_WM_STRUT_PARTIAL"],
+                capture_output=True, text=True, timeout=1, check=False,
+            ).stdout
+            if "=" not in out:
+                continue
+            nums = [int(n.strip()) for n in out.split("=", 1)[1].split(",")]
+            if len(nums) != 12:
+                continue
+            l, r, t, b, ly0, ly1, ry0, ry1, tx0, tx1, bx0, bx1 = nums
+            # Strut sizes are relative to the root (virtual screen) edges;
+            # the start/end pairs give the span along the panel's edge.
+            if l and ly0 < bot and ly1 > top and l > left:
+                left = min(l, right)
+            if r and ry0 < bot and ry1 > top and root_right - r < right:
+                right = max(root_right - r, left)
+            if t and tx0 < right and tx1 > left and t > top:
+                top = min(t, bot)
+            if b and bx0 < right and bx1 > left and root_bot - b < bot:
+                bot = max(root_bot - b, top)
+        return ui.Rect(left, top, right - left, bot - top)
+    except Exception:
+        return screen.visible_rect
+
+
 def _bring_forward(window):
     current_window = ui.active_window()
     try:
@@ -235,7 +280,10 @@ def _snap_window_helper(window, pos):
             window.maximized = True
         return
 
-    screen = window.screen.visible_rect
+    if app.platform == "linux":
+        screen = _visible_rect_with_struts(window.screen)
+    else:
+        screen = window.screen.visible_rect
 
     x = screen.x + (screen.width * pos.left)
     y = screen.y + (screen.height * pos.top)
