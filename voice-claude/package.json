@@ -1,0 +1,55 @@
+{
+  "name": "voice-claude",
+  "displayName": "Voice Claude",
+  "description": "Speak an instruction; Claude edits the file at your cursor.",
+  "version": "0.0.1",
+  "publisher": "michael",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "voiceClaude.run",
+        "title": "Voice Claude: Run prompt at cursor"
+      },
+      {
+        "command": "voiceClaude.kill",
+        "title": "Voice Claude: Kill session"
+      }
+    ],
+    "configuration": {
+      "title": "Voice Claude",
+      "properties": {
+        "voiceClaude.claudePath": {
+          "type": "string",
+          "default": "claude",
+          "description": "Path to the claude CLI."
+        },
+        "voiceClaude.codexPath": {
+          "type": "string",
+          "default": "codex",
+          "description": "Path to the codex CLI."
+        },
+        "voiceClaude.permissionMode": {
+          "type": "string",
+          "enum": ["acceptEdits", "default", "plan", "bypassPermissions"],
+          "default": "acceptEdits",
+          "description": "Claude Code permission mode for the launched session. acceptEdits auto-applies file edits (good for hands-free voice)."
+        },
+        "voiceClaude.extraArgs": {
+          "type": "string",
+          "default": "",
+          "description": "Extra args appended to the claude command."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}

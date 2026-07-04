@@ -1,0 +1,12 @@
+{
+  "backend": "claude",
+  "claude": {
+    "model": "sonnet",
+    "effort": "low"
+  },
+  "codex": {
+    "model": "gpt-5.3-codex-spark",
+    "reasoning": "low",
+    "fastMode": false
+  }
+}
