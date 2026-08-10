@@ -107,40 +107,128 @@ function isDataFile(filePath: string): boolean {
     return dataExts.includes(ext);
 }
 
-// Pops a modal warning when a lot of files (or a lot of data files, e.g.
-// dumped .jsonl/.json artifacts) are about to be opened. Returns the uris to
-// open, or null if the user cancelled.
-async function confirmOpenFiles(uris: vscode.Uri[]): Promise<vscode.Uri[] | null> {
-    const config = vscode.workspace.getConfiguration('gitInlineChanges');
-    const warnTotal = config.get<number>('warnFileCount', 15);
-    const warnData = config.get<number>('warnDataFileCount', 5);
+function fileSize(filePath: string): number {
+    try {
+        return fs.statSync(filePath).size;
+    } catch {
+        return 0;
+    }
+}
 
-    const dataUris = uris.filter(uri => isDataFile(uri.fsPath));
-    const tooManyTotal = warnTotal > 0 && uris.length > warnTotal;
-    const tooManyData = warnData > 0 && dataUris.length > warnData;
-    if (!tooManyTotal && !tooManyData) {
+function formatBytes(bytes: number): string {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${bytes} B`;
+}
+
+// Changed-line counts per absolute path for the unstaged diff, so a small file
+// with a huge rewrite is caught as well as a plain big file. Binary files
+// report "-" and are left out; their size check covers them.
+async function getChangedLineCounts(git: API, repo: Repository): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    try {
+        const output = await runGit(git, repo, [
+            'diff', '--numstat', '--no-renames', '-z', '--',
+        ]);
+        // Each NUL-terminated record is "added\tdeleted\tpath"; the path is
+        // verbatim, so only split off the two leading count fields.
+        for (const record of splitGitPathOutput(output)) {
+            const firstTab = record.indexOf('\t');
+            const secondTab = record.indexOf('\t', firstTab + 1);
+            if (firstTab < 0 || secondTab < 0) continue;
+            const added = record.slice(0, firstTab);
+            const deleted = record.slice(firstTab + 1, secondTab);
+            const relativePath = record.slice(secondTab + 1);
+            if (added === '-' || deleted === '-' || !relativePath) continue;
+            const total = (parseInt(added, 10) || 0) + (parseInt(deleted, 10) || 0);
+            counts.set(path.join(repo.rootUri.fsPath, relativePath), total);
+        }
+    } catch (err) {
+        log.appendLine(`  numstat failed for ${repo.rootUri.fsPath}: ${err}`);
+    }
+    return counts;
+}
+
+interface OpenCandidate {
+    uri: vscode.Uri;
+    size: number;
+    isData: boolean;
+    isHeavy: boolean;
+    reason?: string;
+}
+
+// Pops a modal warning before flooding the editor: too many files, too many
+// data files (dumped .jsonl/.json artifacts and the like), files that are
+// individually huge, diffs with an enormous number of changed lines, or too
+// many bytes in total. Returns the uris to open, or null if the user cancelled.
+async function confirmOpenFiles(
+    uris: vscode.Uri[],
+    changedLines?: Map<string, number>
+): Promise<vscode.Uri[] | null> {
+    const config = vscode.workspace.getConfiguration('gitInlineChanges');
+    const warnCount = config.get<number>('warnFileCount', 15);
+    const warnData = config.get<number>('warnDataFileCount', 5);
+    const warnSizeKb = config.get<number>('warnFileSizeKb', 512);
+    const warnLines = config.get<number>('warnChangedLineCount', 2000);
+    const warnTotalMb = config.get<number>('warnTotalSizeMb', 20);
+
+    const sizeLimit = warnSizeKb > 0 ? warnSizeKb * 1024 : Infinity;
+    const lineLimit = warnLines > 0 ? warnLines : Infinity;
+
+    const candidates: OpenCandidate[] = uris.map(uri => {
+        const size = fileSize(uri.fsPath);
+        const lines = changedLines?.get(uri.fsPath);
+        const reasons: string[] = [];
+        if (size > sizeLimit) reasons.push(formatBytes(size));
+        if (lines !== undefined && lines > lineLimit) reasons.push(`${lines} changed lines`);
+        return {
+            uri,
+            size,
+            isData: isDataFile(uri.fsPath),
+            isHeavy: reasons.length > 0,
+            reason: reasons.join(', '),
+        };
+    });
+
+    const dataFiles = candidates.filter(c => c.isData);
+    const heavyFiles = candidates.filter(c => c.isHeavy);
+    const totalBytes = candidates.reduce((sum, c) => sum + c.size, 0);
+
+    const tooMany = warnCount > 0 && candidates.length > warnCount;
+    const tooMuchData = warnData > 0 && dataFiles.length > warnData;
+    const tooHeavy = heavyFiles.length > 0;
+    const tooBig = warnTotalMb > 0 && totalBytes > warnTotalMb * 1024 * 1024;
+    if (!tooMany && !tooMuchData && !tooHeavy && !tooBig) {
         return uris;
     }
 
-    const detail = tooManyData
-        ? `${uris.length} changed file(s), ${dataUris.length} of them data files (e.g. ${path.basename(dataUris[0].fsPath)}).`
-        : `${uris.length} changed file(s).`;
+    const lines = [`${candidates.length} changed file(s), ${formatBytes(totalBytes)} total.`];
+    if (dataFiles.length > 0) {
+        lines.push(`${dataFiles.length} data file(s), e.g. ${path.basename(dataFiles[0].uri.fsPath)}.`);
+    }
+    if (tooHeavy) {
+        const worst = [...heavyFiles].sort((a, b) => b.size - a.size).slice(0, 3);
+        const listed = worst.map(c => `${path.basename(c.uri.fsPath)} (${c.reason})`).join(', ');
+        const more = heavyFiles.length > worst.length ? `, +${heavyFiles.length - worst.length} more` : '';
+        lines.push(`${heavyFiles.length} large file(s): ${listed}${more}.`);
+    }
 
-    const openAll = `Open all ${uris.length}`;
-    const skipData = dataUris.length > 0 && dataUris.length < uris.length
-        ? `Skip ${dataUris.length} data file(s)`
+    const skipped = candidates.filter(c => c.isData || c.isHeavy);
+    const keep = candidates.filter(c => !c.isData && !c.isHeavy);
+
+    const openAll = `Open all ${candidates.length}`;
+    const openSome = skipped.length > 0 && keep.length > 0
+        ? `Open only ${keep.length} (skip ${skipped.length} data/large)`
         : undefined;
-    const buttons = skipData ? [openAll, skipData] : [openAll];
+    const buttons = openSome ? [openAll, openSome] : [openAll];
 
     const choice = await vscode.window.showWarningMessage(
         'Open many changed files?',
-        { modal: true, detail },
+        { modal: true, detail: lines.join('\n') },
         ...buttons
     );
     if (choice === openAll) return uris;
-    if (skipData && choice === skipData) {
-        return uris.filter(uri => !isDataFile(uri.fsPath));
-    }
+    if (openSome && choice === openSome) return keep.map(c => c.uri);
     log.appendLine('Open changed files cancelled by user.');
     return null;
 }
@@ -258,6 +346,7 @@ function initWithGit(git: API, context: vscode.ExtensionContext) {
 
 async function openAllChangedFiles(git: API) {
     const allUris: vscode.Uri[] = [];
+    const changedLines = new Map<string, number>();
 
     for (const repo of reposInWorkspace(git)) {
         try {
@@ -267,6 +356,9 @@ async function openAllChangedFiles(git: API) {
                 log.appendLine(`  unstaged: ${uri.fsPath}`);
             }
             allUris.push(...uris);
+            for (const [file, count] of await getChangedLineCounts(git, repo)) {
+                changedLines.set(file, count);
+            }
         } catch (err) {
             log.appendLine(`openAllChanged: git file list failed for ${repo.rootUri.fsPath}: ${err}`);
         }
@@ -278,7 +370,7 @@ async function openAllChangedFiles(git: API) {
         return;
     }
 
-    const urisToOpen = await confirmOpenFiles(allUris);
+    const urisToOpen = await confirmOpenFiles(allUris, changedLines);
     if (!urisToOpen) return;
 
     log.appendLine(`Opening ${urisToOpen.length} changed file(s)...`);
@@ -297,12 +389,16 @@ async function openAllChangedFiles(git: API) {
 async function openAllChangedDiffs(git: API) {
     const tracked: vscode.Uri[] = [];
     const untracked: vscode.Uri[] = [];
+    const changedLines = new Map<string, number>();
 
     for (const repo of reposInWorkspace(git)) {
         try {
             const files = await getUnstagedFiles(git, repo);
             tracked.push(...files.tracked);
             untracked.push(...files.untracked);
+            for (const [file, count] of await getChangedLineCounts(git, repo)) {
+                changedLines.set(file, count);
+            }
         } catch (err) {
             log.appendLine(`openAllDiffs: git file list failed for ${repo.rootUri.fsPath}: ${err}`);
         }
@@ -313,7 +409,7 @@ async function openAllChangedDiffs(git: API) {
         return;
     }
 
-    const toOpen = await confirmOpenFiles([...tracked, ...untracked]);
+    const toOpen = await confirmOpenFiles([...tracked, ...untracked], changedLines);
     if (!toOpen) return;
     const keep = new Set(toOpen.map(uri => uri.fsPath));
 
@@ -382,10 +478,14 @@ async function openReviewedFiles() {
 
 async function showChangedInTree(git: API) {
     const allUris: vscode.Uri[] = [];
+    const changedLines = new Map<string, number>();
 
     for (const repo of reposInWorkspace(git)) {
         const seen = new Set<string>();
         const changes = getAllChanges(repo);
+        for (const [file, count] of await getChangedLineCounts(git, repo)) {
+            changedLines.set(file, count);
+        }
 
         for (const change of changes) {
             if (isDeleted(change)) continue;
@@ -402,7 +502,7 @@ async function showChangedInTree(git: API) {
         return;
     }
 
-    const urisToReveal = await confirmOpenFiles(allUris);
+    const urisToReveal = await confirmOpenFiles(allUris, changedLines);
     if (!urisToReveal) return;
 
     // Collapse file tree

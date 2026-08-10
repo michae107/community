@@ -46,6 +46,21 @@
           "default": 5,
           "description": "Warn before opening changed files when more than this many are data files like .json/.csv/lock files (0 disables)"
         },
+        "gitInlineChanges.warnFileSizeKb": {
+          "type": "number",
+          "default": 512,
+          "description": "Warn before opening changed files when any file is larger than this many KB (0 disables)"
+        },
+        "gitInlineChanges.warnChangedLineCount": {
+          "type": "number",
+          "default": 2000,
+          "description": "Warn before opening changed files when any file's unstaged diff exceeds this many changed lines (0 disables)"
+        },
+        "gitInlineChanges.warnTotalSizeMb": {
+          "type": "number",
+          "default": 20,
+          "description": "Warn before opening changed files when their combined size exceeds this many MB (0 disables)"
+        },
         "gitInlineChanges.dataFileExtensions": {
           "type": "array",
           "items": {
