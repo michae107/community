@@ -35,6 +35,49 @@
           "type": "boolean",
           "default": true,
           "description": "Show green file names for changed files in the explorer"
+        },
+        "gitInlineChanges.warnFileCount": {
+          "type": "number",
+          "default": 15,
+          "description": "Warn before opening changed files when more than this many would open (0 disables)"
+        },
+        "gitInlineChanges.warnDataFileCount": {
+          "type": "number",
+          "default": 5,
+          "description": "Warn before opening changed files when more than this many are data files like .json/.csv/lock files (0 disables)"
+        },
+        "gitInlineChanges.dataFileExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "json",
+            "jsonl",
+            "ndjson",
+            "csv",
+            "tsv",
+            "xml",
+            "svg",
+            "log",
+            "lock",
+            "parquet",
+            "pkl",
+            "pickle",
+            "npy",
+            "npz",
+            "db",
+            "sqlite",
+            "sqlite3",
+            "bin",
+            "dat",
+            "pb",
+            "onnx",
+            "ipynb",
+            "map",
+            "models"
+          ],
+          "description": "File extensions (without dot) counted as data files for the open-changed-files warning"
         }
       }
     },
@@ -44,8 +87,28 @@
         "title": "Git Inline Changes: Open All Changed Files"
       },
       {
+        "command": "gitInlineChanges.openAllDiffs",
+        "title": "Git Inline Changes: Open Diff Tab per Changed File"
+      },
+      {
         "command": "gitInlineChanges.showChangedInTree",
         "title": "Git Inline Changes: Show Changed Files in Tree"
+      },
+      {
+        "command": "gitInlineChanges.markReviewed",
+        "title": "Git Inline Changes: Flag Current File for Review"
+      },
+      {
+        "command": "gitInlineChanges.clearReviewed",
+        "title": "Git Inline Changes: Clear Review Flag on Current File"
+      },
+      {
+        "command": "gitInlineChanges.clearAllReviewed",
+        "title": "Git Inline Changes: Clear All Review Flags"
+      },
+      {
+        "command": "gitInlineChanges.openReviewed",
+        "title": "Git Inline Changes: Open Files Flagged for Review"
       }
     ],
     "colors": [
@@ -57,6 +120,16 @@
           "light": "#0a84ff",
           "highContrast": "#6ad0ff",
           "highContrastLight": "#0060cc"
+        }
+      },
+      {
+        "id": "gitInlineChanges.reviewedFileForeground",
+        "description": "Color for files flagged for review in explorer/file tree",
+        "defaults": {
+          "dark": "#e0a458",
+          "light": "#b8730d",
+          "highContrast": "#f0b468",
+          "highContrastLight": "#8a5600"
         }
       }
     ]

@@ -91,7 +91,66 @@ function isOpenableFile(filePath: string): boolean {
     }
 }
 
-async function getUnstagedFileUris(git: API, repo: Repository): Promise<vscode.Uri[]> {
+const LOCKFILE_NAMES = new Set([
+    'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'poetry.lock',
+    'uv.lock', 'Cargo.lock', 'go.sum', 'Gemfile.lock', 'composer.lock',
+]);
+
+function isDataFile(filePath: string): boolean {
+    const base = path.basename(filePath);
+    if (LOCKFILE_NAMES.has(base)) return true;
+    if (base.endsWith('.min.js') || base.endsWith('.min.css')) return true;
+    const ext = path.extname(base).slice(1).toLowerCase();
+    if (!ext) return false;
+    const config = vscode.workspace.getConfiguration('gitInlineChanges');
+    const dataExts = config.get<string[]>('dataFileExtensions', []);
+    return dataExts.includes(ext);
+}
+
+// Pops a modal warning when a lot of files (or a lot of data files, e.g.
+// dumped .jsonl/.json artifacts) are about to be opened. Returns the uris to
+// open, or null if the user cancelled.
+async function confirmOpenFiles(uris: vscode.Uri[]): Promise<vscode.Uri[] | null> {
+    const config = vscode.workspace.getConfiguration('gitInlineChanges');
+    const warnTotal = config.get<number>('warnFileCount', 15);
+    const warnData = config.get<number>('warnDataFileCount', 5);
+
+    const dataUris = uris.filter(uri => isDataFile(uri.fsPath));
+    const tooManyTotal = warnTotal > 0 && uris.length > warnTotal;
+    const tooManyData = warnData > 0 && dataUris.length > warnData;
+    if (!tooManyTotal && !tooManyData) {
+        return uris;
+    }
+
+    const detail = tooManyData
+        ? `${uris.length} changed file(s), ${dataUris.length} of them data files (e.g. ${path.basename(dataUris[0].fsPath)}).`
+        : `${uris.length} changed file(s).`;
+
+    const openAll = `Open all ${uris.length}`;
+    const skipData = dataUris.length > 0 && dataUris.length < uris.length
+        ? `Skip ${dataUris.length} data file(s)`
+        : undefined;
+    const buttons = skipData ? [openAll, skipData] : [openAll];
+
+    const choice = await vscode.window.showWarningMessage(
+        'Open many changed files?',
+        { modal: true, detail },
+        ...buttons
+    );
+    if (choice === openAll) return uris;
+    if (skipData && choice === skipData) {
+        return uris.filter(uri => !isDataFile(uri.fsPath));
+    }
+    log.appendLine('Open changed files cancelled by user.');
+    return null;
+}
+
+interface UnstagedFiles {
+    tracked: vscode.Uri[];
+    untracked: vscode.Uri[];
+}
+
+async function getUnstagedFiles(git: API, repo: Repository): Promise<UnstagedFiles> {
     const trackedOutput = await runGit(git, repo, [
         'diff',
         '--name-only',
@@ -108,26 +167,31 @@ async function getUnstagedFileUris(git: API, repo: Repository): Promise<vscode.U
     ]);
 
     const seen = new Set<string>();
-    const uris: vscode.Uri[] = [];
-    const relativePaths = [
-        ...splitGitPathOutput(trackedOutput),
-        ...splitGitPathOutput(untrackedOutput),
-    ];
+    const result: UnstagedFiles = { tracked: [], untracked: [] };
 
-    for (const relativePath of relativePaths) {
-        const filePath = path.join(repo.rootUri.fsPath, relativePath);
-        if (seen.has(filePath)) continue;
-        seen.add(filePath);
+    const collect = (output: string, into: vscode.Uri[]) => {
+        for (const relativePath of splitGitPathOutput(output)) {
+            const filePath = path.join(repo.rootUri.fsPath, relativePath);
+            if (seen.has(filePath)) continue;
+            seen.add(filePath);
 
-        if (!isOpenableFile(filePath)) {
-            log.appendLine(`  Skipping non-file or missing path: ${filePath}`);
-            continue;
+            if (!isOpenableFile(filePath)) {
+                log.appendLine(`  Skipping non-file or missing path: ${filePath}`);
+                continue;
+            }
+
+            into.push(vscode.Uri.file(filePath));
         }
+    };
 
-        uris.push(vscode.Uri.file(filePath));
-    }
+    collect(trackedOutput, result.tracked);
+    collect(untrackedOutput, result.untracked);
+    return result;
+}
 
-    return uris;
+async function getUnstagedFileUris(git: API, repo: Repository): Promise<vscode.Uri[]> {
+    const files = await getUnstagedFiles(git, repo);
+    return [...files.tracked, ...files.untracked];
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -214,8 +278,100 @@ async function openAllChangedFiles(git: API) {
         return;
     }
 
-    log.appendLine(`Opening ${allUris.length} changed file(s)...`);
-    for (const uri of allUris) {
+    const urisToOpen = await confirmOpenFiles(allUris);
+    if (!urisToOpen) return;
+
+    log.appendLine(`Opening ${urisToOpen.length} changed file(s)...`);
+    for (const uri of urisToOpen) {
+        try {
+            await vscode.window.showTextDocument(uri, { preview: false, preserveFocus: true });
+        } catch (err) {
+            log.appendLine(`  Failed to open ${uri.fsPath}: ${err}`);
+        }
+    }
+}
+
+// Opens one diff editor tab per unstaged file (index vs working tree), so you
+// stay in the main editor area instead of the SCM multi-diff view. Untracked
+// files have nothing to diff against, so they open as plain editors.
+async function openAllChangedDiffs(git: API) {
+    const tracked: vscode.Uri[] = [];
+    const untracked: vscode.Uri[] = [];
+
+    for (const repo of reposInWorkspace(git)) {
+        try {
+            const files = await getUnstagedFiles(git, repo);
+            tracked.push(...files.tracked);
+            untracked.push(...files.untracked);
+        } catch (err) {
+            log.appendLine(`openAllDiffs: git file list failed for ${repo.rootUri.fsPath}: ${err}`);
+        }
+    }
+
+    if (tracked.length + untracked.length === 0) {
+        vscode.window.showInformationMessage('No changed files found.');
+        return;
+    }
+
+    const toOpen = await confirmOpenFiles([...tracked, ...untracked]);
+    if (!toOpen) return;
+    const keep = new Set(toOpen.map(uri => uri.fsPath));
+
+    log.appendLine(`Opening ${toOpen.length} diff tab(s)...`);
+    for (const uri of tracked) {
+        if (!keep.has(uri.fsPath)) continue;
+        try {
+            await vscode.commands.executeCommand(
+                'vscode.diff',
+                git.toGitUri(uri, '~'),
+                uri,
+                `${path.basename(uri.fsPath)} (Working Tree)`,
+                { preview: false, preserveFocus: true }
+            );
+        } catch (err) {
+            log.appendLine(`  Failed to open diff for ${uri.fsPath}: ${err}`);
+        }
+    }
+    for (const uri of untracked) {
+        if (!keep.has(uri.fsPath)) continue;
+        try {
+            await vscode.window.showTextDocument(uri, { preview: false, preserveFocus: true });
+        } catch (err) {
+            log.appendLine(`  Failed to open ${uri.fsPath}: ${err}`);
+        }
+    }
+}
+
+function markReviewed() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showInformationMessage('No active file to flag for review.');
+        return;
+    }
+    fileDecProvider.addReview(editor.document.uri);
+    log.appendLine(`Flagged for review: ${editor.document.uri.fsPath}`);
+}
+
+function clearReviewed() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showInformationMessage('No active file to clear.');
+        return;
+    }
+    fileDecProvider.removeReview(editor.document.uri);
+    log.appendLine(`Cleared review flag: ${editor.document.uri.fsPath}`);
+}
+
+async function openReviewedFiles() {
+    const uris = fileDecProvider.getReviewedUris().filter(uri => isOpenableFile(uri.fsPath));
+
+    if (uris.length === 0) {
+        vscode.window.showInformationMessage('No files flagged for review.');
+        return;
+    }
+
+    log.appendLine(`Opening ${uris.length} review file(s)...`);
+    for (const uri of uris) {
         try {
             await vscode.window.showTextDocument(uri, { preview: false, preserveFocus: true });
         } catch (err) {
@@ -246,6 +402,9 @@ async function showChangedInTree(git: API) {
         return;
     }
 
+    const urisToReveal = await confirmOpenFiles(allUris);
+    if (!urisToReveal) return;
+
     // Collapse file tree
     log.appendLine('Collapsing file tree...');
     try {
@@ -257,8 +416,8 @@ async function showChangedInTree(git: API) {
     await new Promise(resolve => setTimeout(resolve, 200));
 
     // Open each changed file and reveal it in the file tree
-    log.appendLine(`Revealing ${allUris.length} changed file(s) in file tree...`);
-    for (const uri of allUris) {
+    log.appendLine(`Revealing ${urisToReveal.length} changed file(s) in file tree...`);
+    for (const uri of urisToReveal) {
         try {
             await vscode.window.showTextDocument(uri, { preview: false, preserveFocus: false });
             await vscode.commands.executeCommand('talon-filetree.revealCurrentFile');
@@ -284,11 +443,16 @@ function setup(git: API, context: vscode.ExtensionContext) {
     // Register command
     context.subscriptions.push(
         vscode.commands.registerCommand('gitInlineChanges.openAllChanged', () => openAllChangedFiles(git)),
-        vscode.commands.registerCommand('gitInlineChanges.showChangedInTree', () => showChangedInTree(git))
+        vscode.commands.registerCommand('gitInlineChanges.openAllDiffs', () => openAllChangedDiffs(git)),
+        vscode.commands.registerCommand('gitInlineChanges.showChangedInTree', () => showChangedInTree(git)),
+        vscode.commands.registerCommand('gitInlineChanges.markReviewed', () => markReviewed()),
+        vscode.commands.registerCommand('gitInlineChanges.clearReviewed', () => clearReviewed()),
+        vscode.commands.registerCommand('gitInlineChanges.clearAllReviewed', () => fileDecProvider.clearAllReviews()),
+        vscode.commands.registerCommand('gitInlineChanges.openReviewed', () => openReviewedFiles())
     );
 
     // File decoration provider
-    fileDecProvider = new GitFileDecorationProvider();
+    fileDecProvider = new GitFileDecorationProvider(context.workspaceState);
     context.subscriptions.push(
         vscode.window.registerFileDecorationProvider(fileDecProvider)
     );

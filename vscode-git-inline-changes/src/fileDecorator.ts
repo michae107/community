@@ -7,6 +7,8 @@ import type { Repository } from './typings/git';
 const STATUS_INDEX_DELETED = 2;
 const STATUS_DELETED = 6;
 
+const REVIEWED_STORAGE_KEY = 'gitInlineChanges.reviewedUris';
+
 export class GitFileDecorationProvider implements vscode.FileDecorationProvider {
     private readonly _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
     readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
@@ -15,6 +17,39 @@ export class GitFileDecorationProvider implements vscode.FileDecorationProvider 
     // the repo it was given, so refreshing one repo (e.g. a linked worktree the
     // git extension surfaces separately) never wipes another repo's badges.
     private changedUrisByRepo = new Map<string, Set<string>>();
+
+    // Files the user has flagged for review. Independent of git status and
+    // persisted in workspace state, so a reload keeps the flags.
+    private reviewedUris: Set<string>;
+
+    constructor(private storage: vscode.Memento) {
+        const saved = storage.get<string[]>(REVIEWED_STORAGE_KEY, []);
+        this.reviewedUris = new Set(saved);
+    }
+
+    addReview(uri: vscode.Uri): void {
+        this.reviewedUris.add(uri.toString());
+        this.persistReviews();
+    }
+
+    removeReview(uri: vscode.Uri): void {
+        this.reviewedUris.delete(uri.toString());
+        this.persistReviews();
+    }
+
+    clearAllReviews(): void {
+        this.reviewedUris.clear();
+        this.persistReviews();
+    }
+
+    getReviewedUris(): vscode.Uri[] {
+        return [...this.reviewedUris].map(s => vscode.Uri.parse(s));
+    }
+
+    private persistReviews(): void {
+        this.storage.update(REVIEWED_STORAGE_KEY, [...this.reviewedUris]);
+        this._onDidChangeFileDecorations.fire(undefined);
+    }
 
     refresh(repo: Repository): void {
         const repoRoot = repo.rootUri.fsPath;
@@ -68,6 +103,16 @@ export class GitFileDecorationProvider implements vscode.FileDecorationProvider 
         const config = vscode.workspace.getConfiguration('gitInlineChanges');
         if (!config.get<boolean>('showFileDecorations', true)) {
             return undefined;
+        }
+
+        if (this.reviewedUris.has(uri.toString())) {
+            const decoration = new vscode.FileDecoration(
+                '\u2605', // star badge
+                'Flagged for review',
+                new vscode.ThemeColor('gitInlineChanges.reviewedFileForeground')
+            );
+            decoration.propagate = true;
+            return decoration;
         }
 
         if (!this.isChanged(uri.toString())) {
