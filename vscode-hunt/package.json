@@ -1,0 +1,274 @@
+{
+  "name": "hunt",
+  "displayName": "Hunt",
+  "description": "Accessible workspace search with voice-friendly letter hints on every result.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:hunt.input",
+    "onView:hunt.results",
+    "onCommand:hunt.search"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "hunt.search",
+        "title": "Hunt: New Search",
+        "icon": "$(search)"
+      },
+      {
+        "command": "hunt.refresh",
+        "title": "Hunt: Refresh Results",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "hunt.clear",
+        "title": "Hunt: Clear Results",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "hunt.openResult",
+        "title": "Hunt: Open Result"
+      },
+      {
+        "command": "hunt.openResultToSide",
+        "title": "Hunt: Open Result to the Side"
+      },
+      {
+        "command": "hunt.nextResult",
+        "title": "Hunt: Next Result"
+      },
+      {
+        "command": "hunt.previousResult",
+        "title": "Hunt: Previous Result"
+      },
+      {
+        "command": "hunt.copyResult",
+        "title": "Hunt: Copy Result"
+      },
+      {
+        "command": "hunt.toggleCase",
+        "title": "Hunt: Toggle Match Case"
+      },
+      {
+        "command": "hunt.toggleWholeWord",
+        "title": "Hunt: Toggle Whole Word"
+      },
+      {
+        "command": "hunt.toggleRegex",
+        "title": "Hunt: Toggle Regular Expression"
+      },
+      {
+        "command": "hunt.setInclude",
+        "title": "Hunt: Set Files to Include"
+      },
+      {
+        "command": "hunt.setExclude",
+        "title": "Hunt: Set Files to Exclude"
+      },
+      {
+        "command": "hunt.focus",
+        "title": "Hunt: Focus Search Box"
+      },
+      {
+        "command": "hunt.focusSearchBox",
+        "title": "Hunt: Focus Search Box"
+      },
+      {
+        "command": "hunt.showSearchBox",
+        "title": "Hunt: Back to Search Box"
+      }
+    ],
+    "configuration": {
+      "title": "Hunt",
+      "properties": {
+        "hunt.maxResults": {
+          "type": "number",
+          "default": 500,
+          "minimum": 1,
+          "maximum": 18278,
+          "description": "Maximum matching lines to show. Each line receives a unique hint."
+        },
+        "hunt.hintStyle": {
+          "type": "string",
+          "default": "lowercase",
+          "enum": [
+            "lowercase",
+            "uppercase"
+          ],
+          "enumDescriptions": [
+            "[a] matching text",
+            "[A] matching text"
+          ],
+          "description": "Visual style for letter hints. Screen readers always receive the spoken letter names."
+        },
+        "hunt.previewLength": {
+          "type": "number",
+          "default": 180,
+          "minimum": 40,
+          "maximum": 500,
+          "description": "Maximum number of characters shown for each matching line."
+        },
+        "hunt.includeHidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include hidden files and directories in searches."
+        },
+        "hunt.useIgnoreFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Respect .gitignore and other ignore files."
+        },
+        "hunt.respectSearchExclude": {
+          "type": "boolean",
+          "default": true,
+          "description": "Respect enabled files.exclude and search.exclude patterns."
+        },
+        "hunt.dataFileExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "bin", "csv", "dat", "db", "feather", "ipynb", "json", "jsonl",
+            "lock", "map", "models", "ndjson", "npy", "npz", "onnx", "parquet",
+            "pb", "pickle", "pkl", "sqlite", "sqlite3", "svg", "tsv", "xml",
+            "yaml", "yml"
+          ],
+          "description": "File extensions treated as data. Match quality ranks first; when quality is tied, every non-data file ranks above data files."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "hunt",
+          "title": "Hunt",
+          "icon": "resources/hunt.svg"
+        }
+      ]
+    },
+    "views": {
+      "hunt": [
+        {
+          "id": "hunt.input",
+          "name": "Search",
+          "type": "webview",
+          "when": "!hunt.showResults",
+          "contextualTitle": "Hunt"
+        },
+        {
+          "id": "hunt.results",
+          "name": "Results",
+          "when": "hunt.showResults",
+          "contextualTitle": "Hunt"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "hunt.results",
+        "contents": "Search every file and give each matching line a voice hint.\n[Start an accessible search](command:hunt.search)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "hunt.search",
+          "when": "view == hunt.input || view == hunt.results",
+          "group": "navigation@1"
+        },
+        {
+          "command": "hunt.refresh",
+          "when": "view == hunt.results && hunt.hasQuery",
+          "group": "navigation@2"
+        },
+        {
+          "command": "hunt.toggleCase",
+          "when": "view == hunt.results",
+          "group": "hunt@1"
+        },
+        {
+          "command": "hunt.toggleWholeWord",
+          "when": "view == hunt.results",
+          "group": "hunt@2"
+        },
+        {
+          "command": "hunt.toggleRegex",
+          "when": "view == hunt.results",
+          "group": "hunt@3"
+        },
+        {
+          "command": "hunt.setInclude",
+          "when": "view == hunt.results",
+          "group": "hunt@4"
+        },
+        {
+          "command": "hunt.setExclude",
+          "when": "view == hunt.results",
+          "group": "hunt@5"
+        },
+        {
+          "command": "hunt.clear",
+          "when": "view == hunt.results && hunt.hasQuery",
+          "group": "hunt@6"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "hunt.openResultToSide",
+          "when": "view == hunt.results && viewItem == hunt.match",
+          "group": "inline@1"
+        },
+        {
+          "command": "hunt.copyResult",
+          "when": "view == hunt.results && viewItem == hunt.match",
+          "group": "hunt@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "hunt.showSearchBox",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "focusedView == hunt.results"
+      },
+      {
+        "command": "hunt.showSearchBox",
+        "key": "escape",
+        "when": "focusedView == hunt.results"
+      },
+      {
+        "command": "hunt.nextResult",
+        "key": "f4",
+        "when": "focusedView == hunt.results"
+      },
+      {
+        "command": "hunt.previousResult",
+        "key": "shift+f4",
+        "when": "focusedView == hunt.results"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test out/test/*.test.js"
+  },
+  "dependencies": {
+    "@vscode/ripgrep": "^1.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@types/vscode": "^1.108.0",
+    "typescript": "^5.9.3"
+  }
+}
