@@ -320,6 +320,8 @@ public partial class VoicePlugin : EditorPlugin
                 break;
             case "tree.select": case "tree.open": case "tree.toggle": case "tree.expand": case "tree.collapse": case "tree.parent": case "tree.copy_path": case "tree.rename": case "tree.delete": case "tree.duplicate":
                 TreeCommand(method, args); break;
+            case "tree.expand_root": case "tree.collapse_root":
+                SetRootCollapsed(Text(args, "scope"), method == "tree.collapse_root"); break;
             case "tree.root": case "tree.collapse_all":
                 Focus(Text(args, "scope"));
                 if (method == "tree.root" && Text(args, "scope") == "files") { Editor.GetFileSystemDock().NavigateToPath("res://"); break; }
@@ -428,6 +430,26 @@ public partial class VoicePlugin : EditorPlugin
         if (target.Control is ItemList list) list.EmitSignal(ItemList.SignalName.ItemActivated, target.Index);
         else if (target.Scope == "files" && target.Control is Tree fileTree) fileTree.EmitSignal(Tree.SignalName.ItemActivated);
         else if (target.Scope == "scene") { Focus("viewport3d"); EditorControls.Shortcut("spatial_editor/focus_selection"); }
+    }
+
+    private static void SetRootCollapsed(string scope, bool collapsed)
+    {
+        if (scope is not ("scene" or "files")) throw new InvalidOperationException("Unknown tree scope.");
+        Focus(scope);
+        var tree = scope == "scene" ? EditorControls.SceneTree
+            : EditorControls.Walk(Editor.GetFileSystemDock()).OfType<Tree>().FirstOrDefault(t => t.IsVisibleInTree());
+        if (tree?.GetRoot() is not TreeItem root) throw new InvalidOperationException("No visible tree.");
+        TreeItem? visibleRoot = tree.HideRoot ? root.GetFirstChild() : root;
+        if (scope == "files")
+        {
+            // Favorites and res:// share a hidden container. Only operate on
+            // the project root, never the container or a favorite shortcut.
+            while (visibleRoot is not null && visibleRoot.GetMetadata(0).ToString() != "res://")
+                visibleRoot = visibleRoot.GetNext();
+        }
+        if (visibleRoot is null) throw new InvalidOperationException("Tree root is not visible; clear the tree search first.");
+        visibleRoot.Collapsed = collapsed;
+        tree.ScrollToItem(visibleRoot);
     }
 
     private static void Expand(TreeItem item, int depth)
