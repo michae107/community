@@ -1,0 +1,7 @@
+{
+  "name": "com.talon.voice",
+  "version": "0.1.0",
+  "displayName": "Talon Voice",
+  "description": "Voice control and letter hints for the native Unity editor.",
+  "unity": "6000.3"
+}
