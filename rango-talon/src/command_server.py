@@ -1,86 +1,92 @@
 import json
+import logging
 import time
-from typing import Any, Union
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from typing import Any
 
-from talon import Module, actions, clip
+from talon import Module, actions, app, clip
 
-from .versions import COMMAND_VERSION
-
+from .anti_hang import (
+    DEFAULT_RESPONSE_TIMEOUT_SECONDS,
+    read_process_text,
+    wait_for_json_response,
+)
 mod = Module()
+_request_in_flight = False
 
-MINIMUM_SLEEP_TIME_SECONDS = 0.0005
+logger = logging.getLogger("rango.command_server")
+_log_path = Path.home() / ".talon" / "rango-command.log"
+if not any(
+    isinstance(handler, RotatingFileHandler)
+    and Path(handler.baseFilename) == _log_path
+    for handler in logger.handlers
+):
+    handler = RotatingFileHandler(_log_path, maxBytes=1_000_000, backupCount=2)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
 
 def send_request_and_wait(command: dict) -> Any:
-    """Sends a command to the browser extension and waits for a response"""
-    json_message = json.dumps(command)
-    with clip.revert():
-        _set_transient_clipboard_text(json_message)
-        actions.user.rango_type_hotkey()
-        response = _read_json_response_with_timeout(3.0)
+    """Send a command with a hard deadline and no re-entrant request queue."""
+    global _request_in_flight
+    if _request_in_flight:
+        logger.warning("request_rejected reason=already_in_flight")
+        raise RuntimeError("A Rango command is already waiting for a response.")
 
-    return response
-
-
-def _read_json_response_with_timeout(timeout_seconds) -> Any:
-    """Repeatedly tries to read a json object from the clipboard, waiting
-    until the message type is "response"
-
-    Raises:
-        Exception: If we timeout waiting for a response
-
-    Returns:
-        Any: The json-decoded contents of the file
-    """
-    timeout_time = time.perf_counter() + timeout_seconds
-    sleep_time = MINIMUM_SLEEP_TIME_SECONDS
-    message = None
-    initial_raw_text = clip.text()
-    while True:
-        raw_text = clip.text()
-        if raw_text is None:
-            # Skip this iteration if clipboard is empty/None
-            actions.sleep(sleep_time)
-            continue
-
-        try:
-            message = json.loads(raw_text)
-            if message["type"] == "response":
-                return message
-        # We make sure the message is valid JSON. For example, if a click command
-        # results in something being copied to the clipboard and we check the clipboard
-        # before Rango has time to copy the response to the clipboard.
-        except ValueError as error:
-            if initial_raw_text == raw_text:
-                # Sanity check to make sure the initial request was valid JSON
-                raise ValueError("The request message wasn't valid JSON")
-
-        actions.sleep(sleep_time)
-
-        time_left = timeout_time - time.perf_counter()
-
-        if time_left < 0:
-            _send_request_timed_out()
-            raise TimeoutError("Timed out waiting for response")
-
-        # NB: We use minimum sleep time here to ensure that we don't spin with
-        # small sleeps due to clock slip
-        sleep_time = max(min(sleep_time * 2, time_left), MINIMUM_SLEEP_TIME_SECONDS)
+    _request_in_flight = True
+    started = time.perf_counter()
+    deadline = started + DEFAULT_RESPONSE_TIMEOUT_SECONDS
+    action_name = command.get("action", {}).get("name", "unknown")
+    logger.info("request_started action=%s", action_name)
+    try:
+        json_message = json.dumps(command)
+        # Rango uses the clipboard as a temporary transport. Talon's native
+        # context preserves every clipboard format (including images), whereas
+        # reading and restoring only text leaves Rango's JSON behind whenever
+        # the clipboard contains non-text data or a bounded text read fails.
+        with clip.revert():
+            _set_transient_clipboard_text(json_message)
+            actions.user.rango_type_hotkey()
+            response = _read_json_response_until(deadline)
+        logger.info(
+            "request_finished action=%s elapsed_ms=%d",
+            action_name,
+            round((time.perf_counter() - started) * 1000),
+        )
+        return response
+    except TimeoutError:
+        logger.error(
+            "request_timed_out action=%s elapsed_ms=%d",
+            action_name,
+            round((time.perf_counter() - started) * 1000),
+        )
+        raise
+    except Exception:
+        logger.exception(
+            "request_failed action=%s elapsed_ms=%d",
+            action_name,
+            round((time.perf_counter() - started) * 1000),
+        )
+        raise
+    finally:
+        _request_in_flight = False
 
 
-# This doesn't wait for the extension to respond to avoid creating an infinite
-# loop if the extension is not responsive
-def _send_request_timed_out():
-    """Sends a request timed out message to the browser extension"""
-    message = {
-        "version": COMMAND_VERSION,
-        "type": "request",
-        "action": {"name": "requestTimedOut"},
-    }
-    json_message = json.dumps(message)
-    _set_transient_clipboard_text(json_message)
-    actions.user.rango_type_hotkey()
-    actions.sleep("200ms")
+def _read_json_response_until(deadline: float) -> dict[str, Any]:
+    return wait_for_json_response(
+        _read_clipboard_text,
+        actions.sleep,
+        deadline=deadline,
+    )
+
+
+def _read_clipboard_text(deadline: float) -> str | None:
+    if app.platform == "linux":
+        return read_process_text(deadline)
+    return clip.text()
 
 
 def _set_transient_clipboard_text(text: str):

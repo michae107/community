@@ -258,6 +258,10 @@ class Actions:
             "snapScroll", {"type": "primitive", "mark": mark}, position=position
         )
 
+    def rango_go_to_line(line: int):
+        """Jumps to a line exposed by the current Rango application."""
+        run_simple_command("goToLine", line=line)
+
     # Scroll positions
     def rango_store_scroll_position(positionName: str):
         """Stores the current scroll position with the given name"""
