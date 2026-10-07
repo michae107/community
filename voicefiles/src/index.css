@@ -1,0 +1,98 @@
+@import "@fontsource/iosevka/400.css";
+@import "@fontsource/iosevka/500.css";
+@import "@fontsource/iosevka/700.css";
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "Iosevka", ui-monospace, "SF Mono", "Cascadia Mono", monospace;
+
+  /* Warm charcoal + phosphor amber. The accent is reserved for the one
+     thing that matters here: the numbers you speak. */
+  --color-bg: #141110;
+  --color-panel: #1e1913;
+  --color-line: #2b2318;
+  --color-ink: #e6dcc8;
+  --color-dim: #8d8069;
+  --color-faint: #5a5142;
+  --color-amber: #ffb454;
+  --color-gold: #e5c07b;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+  user-select: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-amber) 30%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 5px;
+  border: 2px solid var(--color-bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-faint);
+}
+
+/* Faint grain + corner vignette: atmosphere without distraction. */
+.atmosphere::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.atmosphere::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: radial-gradient(120% 90% at 50% 0%, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+@keyframes list-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.list-in {
+  animation: list-in 0.16s ease-out;
+}
+
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 1.4s ease-in-out infinite;
+}
