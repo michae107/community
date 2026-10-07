@@ -1,0 +1,12 @@
+{
+  "name": "com.idlerpg.map-editor",
+  "version": "0.1.0",
+  "displayName": "Idle RPG Hex Map Editor",
+  "description": "Scene-view hex map authoring with tile connection solving and voice commands.",
+  "unity": "6000.3",
+  "dependencies": {
+    "com.unity.render-pipelines.universal": "17.3.0",
+    "com.unity.cloud.gltfast": "6.14.1",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}

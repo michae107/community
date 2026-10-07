@@ -1,0 +1,6 @@
+{
+  "name": "IdleRpg.MapEditor",
+  "rootNamespace": "IdleRpg.MapEditing",
+  "references": ["IdleRpg.MapCore", "Unity.Newtonsoft.Json", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.Universal.Runtime"],
+  "includePlatforms": ["Editor"]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "IdleRpg.MapCore",
+  "rootNamespace": "IdleRpg.MapEditing",
+  "references": ["Unity.Newtonsoft.Json"],
+  "noEngineReferences": true
+}
