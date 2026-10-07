@@ -5,20 +5,20 @@ from talon import Module, actions
 mod = Module()
 
 
-def _wmctrl_ordered_ids():
+def _wmctrl_ordered_windows():
     result = subprocess.run(
-        ["wmctrl", "-l"], check=True, capture_output=True, text=True, timeout=2
+        ["wmctrl", "-lx"], check=True, capture_output=True, text=True, timeout=2
     )
-    ids = []
+    windows = []
     for line in result.stdout.splitlines():
-        parts = line.split(None, 1)
-        if not parts:
+        parts = line.split(None, 3)
+        if len(parts) < 3:
             continue
         try:
-            ids.append(int(parts[0], 16))
+            windows.append((int(parts[0], 16), parts[2].split(".", 1)[0].lower()))
         except ValueError:
             pass
-    return ids
+    return windows
 
 
 @mod.action_class
@@ -30,7 +30,22 @@ class Actions:
         if not app_window_ids:
             actions.app.notify(f"No {name} windows open")
             return
-        ordered = [wid for wid in _wmctrl_ordered_ids() if wid in app_window_ids]
+        windows = _wmctrl_ordered_windows()
+        # Godot games register under the project name, separately from the editor.
+        # Group them by WM_CLASS instance, without depending on window titles.
+        is_godot_editor = any(
+            wid in app_window_ids and instance == "godot_editor"
+            for wid, instance in windows
+        )
+        ordered = [
+            wid
+            for wid, instance in windows
+            if wid in app_window_ids
+            or (
+                is_godot_editor
+                and instance in {"godot_editor", "godot_engine"}
+            )
+        ]
         if not ordered:
             ordered = sorted(app_window_ids)
         target = ordered[min(index, len(ordered)) - 1]

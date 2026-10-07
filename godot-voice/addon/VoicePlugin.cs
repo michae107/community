@@ -15,6 +15,7 @@ namespace TalonVoice;
 [Tool]
 public partial class VoicePlugin : EditorPlugin
 {
+    private const string RuntimePath = "res://addons/talon_voice/VoiceRuntime.cs";
     private NativeHints _hints = new();
     private UiHints _uiHints = new();
     private readonly Dictionary<ulong, HintOverlay> _popupOverlays = new();
@@ -32,6 +33,10 @@ public partial class VoicePlugin : EditorPlugin
     public override void _EnterTree()
     {
         Name = "TalonVoice";
+        if (!ProjectSettings.HasSetting("autoload/TalonVoiceRuntime"))
+            AddAutoloadSingleton("TalonVoiceRuntime", RuntimePath);
+        else if (!OwnsRuntimeAutoload())
+            GD.PushWarning("TalonVoiceRuntime autoload name is already in use; runtime voice hints were not installed.");
         EditorControls.Initialize(GetTree());
         _endpoint = Path.Combine(Path.GetTempPath(), "talon-godot-" + Environment.UserName, Environment.ProcessId.ToString());
         Directory.CreateDirectory(_endpoint);
@@ -49,6 +54,19 @@ public partial class VoicePlugin : EditorPlugin
         SetProcess(true);
         SetProcessInput(true);
         GD.Print("Talon Voice ready: " + ProjectSettings.GlobalizePath("res://"));
+    }
+
+    private static bool OwnsRuntimeAutoload()
+    {
+        if (!ProjectSettings.HasSetting("autoload/TalonVoiceRuntime")) return false;
+        string path = ProjectSettings.GetSetting("autoload/TalonVoiceRuntime").AsString();
+        long uid = ResourceLoader.GetResourceUid(RuntimePath);
+        return path == "*" + RuntimePath || uid >= 0 && path == "*" + ResourceUid.IdToText(uid);
+    }
+
+    public override void _DisablePlugin()
+    {
+        if (OwnsRuntimeAutoload()) RemoveAutoloadSingleton("TalonVoiceRuntime");
     }
 
     public override void _ExitTree()
@@ -178,7 +196,7 @@ public partial class VoicePlugin : EditorPlugin
 
     private void WriteState() => WriteJson(Path.Combine(_endpoint, "state.json"), new
     {
-        version = 1, pid = Environment.ProcessId, project = ProjectSettings.GlobalizePath("res://").TrimEnd('/'),
+        version = 1, kind = "editor", pid = Environment.ProcessId, project = ProjectSettings.GlobalizePath("res://").TrimEnd('/'),
         focused = Editor.GetBaseControl().GetWindow().HasFocus(), updated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
         hints = _hints.Enabled, error = _lastError,
         ui_hints = _uiHints.Enabled, ui_scope = _uiHints.Scope,
@@ -205,42 +223,7 @@ public partial class VoicePlugin : EditorPlugin
         overlay.UpdateVisuals(showNative: false);
     }
 
-    private static void WriteJson(string path, object value)
-    {
-        // JsonSerializer's shared type cache prevents collectible Godot assemblies
-        // from unloading. Stream values without registering any project types.
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream)) WriteValue(writer, value);
-        File.WriteAllText(path + ".tmp", Encoding.UTF8.GetString(stream.ToArray()));
-        File.Move(path + ".tmp", path, true);
-    }
-
-    private static void WriteValue(Utf8JsonWriter writer, object? value)
-    {
-        switch (value)
-        {
-            case null: writer.WriteNullValue(); break;
-            case string text: writer.WriteStringValue(text); break;
-            case bool flag: writer.WriteBooleanValue(flag); break;
-            case int number: writer.WriteNumberValue(number); break;
-            case long number: writer.WriteNumberValue(number); break;
-            case double number: writer.WriteNumberValue(number); break;
-            case IEnumerable values:
-                writer.WriteStartArray();
-                foreach (object? item in values) WriteValue(writer, item);
-                writer.WriteEndArray();
-                break;
-            default:
-                writer.WriteStartObject();
-                foreach (var property in value.GetType().GetProperties())
-                {
-                    writer.WritePropertyName(property.Name);
-                    WriteValue(writer, property.GetValue(value));
-                }
-                writer.WriteEndObject();
-                break;
-        }
-    }
+    private static void WriteJson(string path, object value) => VoiceJson.Write(path, value);
 
     private static string Text(JsonElement args, string key, string fallback = "") => args.TryGetProperty(key, out var value) ? value.GetString() ?? fallback : fallback;
     private static int Number(JsonElement args, string key, int fallback = 1) => args.TryGetProperty(key, out var value) ? value.GetInt32() : fallback;

@@ -1,0 +1,461 @@
+[gd_scene format=3 uid="uid://dol80eeie1sm3"]
+
+[ext_resource type="Script" uid="uid://ctds5onkjsgkt" path="res://addons/talon_voice/preview/VoiceControls.cs" id="1_tt3r8"]
+
+[sub_resource type="Theme" id="Theme_xky2c"]
+default_font_size = 16
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_w7p72"]
+
+[node name="VoiceControls" type="Control" unique_id=582870594]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_xky2c")
+script = ExtResource("1_tt3r8")
+
+[node name="Background" type="ColorRect" parent="." unique_id=459258877]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.06666667, 0.105882354, 0.16078432, 1)
+
+[node name="OuterMargin" type="MarginContainer" parent="." unique_id=657669974]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="Layout" type="VBoxContainer" parent="OuterMargin" unique_id=1665510698]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Heading" type="Label" parent="OuterMargin/Layout" unique_id=867742012]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.57254905, 0.9490196, 0.7411765, 1)
+theme_override_font_sizes/font_size = 28
+text = "VOICE CONTROLS"
+
+[node name="Instructions" type="Label" parent="OuterMargin/Layout" unique_id=627488381]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Use green letters: click / focus / set <letters> to <number> / increase / decrease.  Try upper and downer in the scrolling tab."
+
+[node name="Pages" type="TabContainer" parent="OuterMargin/Layout" unique_id=1851987654]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+current_tab = 0
+
+[node name="Controls" type="MarginContainer" parent="OuterMargin/Layout/Pages" unique_id=1784064367]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+metadata/_tab_index = 0
+
+[node name="Columns" type="HBoxContainer" parent="OuterMargin/Layout/Pages/Controls" unique_id=876537537]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="ButtonsColumn" type="VBoxContainer" parent="OuterMargin/Layout/Pages/Controls/Columns" unique_id=1420053803]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="ActionsHeading" type="Label" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=1645410652]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Actions"
+
+[node name="CountButton" type="Button" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=1445294890]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Count a click"
+
+[node name="ResetButton" type="Button" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=503934428]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Reset counter"
+
+[node name="DialogButton" type="Button" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=1965481401]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Open a dialog"
+
+[node name="BootstrapButton" type="Button" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=910946529]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Open Bootstrap"
+
+[node name="EnabledCheck" type="CheckBox" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=2060199918]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Enable notifications"
+
+[node name="MusicToggle" type="CheckButton" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=1149025936]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Music"
+
+[node name="RadioLeft" type="CheckBox" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=452385306]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+button_group = SubResource("ButtonGroup_w7p72")
+text = "Left-handed"
+
+[node name="RadioRight" type="CheckBox" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=1526296725]
+unique_name_in_owner = true
+layout_mode = 2
+button_group = SubResource("ButtonGroup_w7p72")
+text = "Right-handed"
+
+[node name="DisabledButton" type="Button" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=378868879]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Disabled: should have no hint"
+
+[node name="ActionMenu" type="MenuButton" parent="OuterMargin/Layout/Pages/Controls/Columns/ButtonsColumn" unique_id=399811527]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Actions menu"
+item_count = 4
+popup/item_0/text = "Inspect"
+popup/item_0/id = 10
+popup/item_1/text = "Equip"
+popup/item_1/id = 20
+popup/item_2/id = -1
+popup/item_2/separator = true
+popup/item_3/text = "Unavailable"
+popup/item_3/id = 30
+popup/item_3/disabled = true
+
+[node name="InputsColumn" type="VBoxContainer" parent="OuterMargin/Layout/Pages/Controls/Columns" unique_id=1557139141]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="ValuestextHeading" type="Label" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=947578696]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Values & text"
+
+[node name="NameInput" type="LineEdit" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=743016600]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+placeholder_text = "Character name"
+
+[node name="NotesInput" type="TextEdit" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=2004185151]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 85)
+layout_mode = 2
+placeholder_text = "Multiline notes"
+
+[node name="VolumeLabel" type="Label" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=1027288292]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Volume (0–100)"
+
+[node name="VolumeSlider" type="HSlider" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=1508430991]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+tooltip_text = "Volume"
+step = 5.0
+value = 40.0
+
+[node name="VolumeProgress" type="ProgressBar" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=976066047]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+mouse_filter = 2
+value = 40.0
+
+[node name="QuantityLabel" type="Label" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=660638332]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Quantity (1–99)"
+
+[node name="QuantityInput" type="SpinBox" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=776429374]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+tooltip_text = "Quantity"
+min_value = 1.0
+max_value = 99.0
+value = 3.0
+
+[node name="DifficultyOptions" type="OptionButton" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=1992512489]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+tooltip_text = "Difficulty"
+selected = 1
+item_count = 4
+popup/item_0/text = "Easy"
+popup/item_0/id = 0
+popup/item_1/text = "Normal"
+popup/item_1/id = 1
+popup/item_2/text = "Hard"
+popup/item_2/id = 2
+popup/item_3/text = "Expert"
+popup/item_3/id = 3
+
+[node name="ColorInput" type="ColorPickerButton" parent="OuterMargin/Layout/Pages/Controls/Columns/InputsColumn" unique_id=887548131]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+tooltip_text = "Accent color"
+color = Color(0.57254905, 0.9490196, 0.7411765, 1)
+
+[node name="CollectionsColumn" type="VBoxContainer" parent="OuterMargin/Layout/Pages/Controls/Columns" unique_id=233625175]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="CollectionsHeading" type="Label" parent="OuterMargin/Layout/Pages/Controls/Columns/CollectionsColumn" unique_id=1996602462]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Collections"
+
+[node name="InventoryTree" type="Tree" parent="OuterMargin/Layout/Pages/Controls/Columns/CollectionsColumn" unique_id=1849031218]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 220)
+layout_mode = 2
+size_flags_vertical = 3
+tooltip_text = "Inventory tree"
+
+[node name="InventoryList" type="ItemList" parent="OuterMargin/Layout/Pages/Controls/Columns/CollectionsColumn" unique_id=938457905]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 145)
+layout_mode = 2
+size_flags_vertical = 3
+tooltip_text = "Inventory list"
+item_count = 8
+item_0/text = "Iron sword"
+item_1/text = "Wooden shield"
+item_2/text = "Health potion"
+item_3/text = "Map"
+item_4/text = "Rope"
+item_5/text = "Torch"
+item_6/text = "Compass"
+item_7/text = "Boots"
+
+[node name="Scrolling" type="MarginContainer" parent="OuterMargin/Layout/Pages" unique_id=1790475554]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+metadata/_tab_index = 1
+
+[node name="ExampleScroll" type="ScrollContainer" parent="OuterMargin/Layout/Pages/Scrolling" unique_id=882704176]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="ScrollRows" type="VBoxContainer" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll" unique_id=1186376216]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="ScrollInstructions" type="Label" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=623094859]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Say downer plus a visible button's letters to scroll this panel. Only visible rows should have hints."
+
+[node name="ScrollButton01" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=656060402]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 01"
+
+[node name="ScrollButton02" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1246106507]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 02"
+
+[node name="ScrollButton03" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1433522097]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 03"
+
+[node name="ScrollButton04" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1060683104]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 04"
+
+[node name="ScrollButton05" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1638808850]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 05"
+
+[node name="ScrollButton06" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=426018212]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 06"
+
+[node name="ScrollButton07" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1136590290]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 07"
+
+[node name="ScrollButton08" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=624284442]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 08"
+
+[node name="ScrollButton09" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1681417360]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 09"
+
+[node name="ScrollButton10" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=5786293]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 10"
+
+[node name="ScrollButton11" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1422990932]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 11"
+
+[node name="ScrollButton12" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1636224756]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 12"
+
+[node name="ScrollButton13" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=836534620]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 13"
+
+[node name="ScrollButton14" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1234682385]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 14"
+
+[node name="ScrollButton15" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1907836624]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 15"
+
+[node name="ScrollButton16" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=592206308]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 16"
+
+[node name="ScrollButton17" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=608779705]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 17"
+
+[node name="ScrollButton18" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1894525176]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 18"
+
+[node name="ScrollButton19" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1456874739]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 19"
+
+[node name="ScrollButton20" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1234148763]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 20"
+
+[node name="ScrollButton21" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=176665123]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 21"
+
+[node name="ScrollButton22" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1323629745]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 22"
+
+[node name="ScrollButton23" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=989980283]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 23"
+
+[node name="ScrollButton24" type="Button" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=108478568]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Scrollable action 24"
+
+[node name="ReadOnlyInput" type="LineEdit" parent="OuterMargin/Layout/Pages/Scrolling/ExampleScroll/ScrollRows" unique_id=1655998525]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Read-only field: should have no hint"
+editable = false
+
+[node name="Status" type="Label" parent="OuterMargin/Layout" unique_id=1932022617]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.57254905, 0.9490196, 0.7411765, 1)
+text = "Ready. Run this scene with F6 to see in-game letter hints."
+
+[node name="ExampleDialog" type="AcceptDialog" parent="." unique_id=1386626822]
+unique_name_in_owner = true
+title = "Voice controls dialog"
+size = Vector2i(460, 190)
+dialog_text = "This popup should get its own green hints.
+Click the letter on OK to close it."

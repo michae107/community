@@ -1,4 +1,4 @@
-"""Talon client for the C# Godot editor addon; commands are scoped to the editor."""
+"""Talon client scoped to the active, connected Godot editor or game window."""
 
 import getpass
 import json
@@ -9,17 +9,78 @@ import time
 import uuid
 from pathlib import Path
 
-from talon import Context, Module, actions, ui
+from talon import Context, Module, actions, cron, ui
 
 mod = Module()
-mod.apps.godot_voice_editor = """
-os: linux
-app.name: Godot
-"""
+mod.tag("godot_voice_editor", desc="Connected Godot editor window")
+mod.tag("godot_voice_ui", desc="Connected Godot editor or game UI")
+mod.tag("godot_voice_scene_commands", desc="Focused game with registered scene commands")
+mod.list("godot_voice_coordinate_commands", desc="Scene commands accepting a letter-number coordinate")
+mod.list("godot_voice_text_commands", desc="Scene commands accepting text")
+mod.list("godot_voice_plain_commands", desc="Scene commands without arguments")
+connection_context = Context()
 ctx = Context()
 ctx.matches = """
-app: godot_voice_editor
+tag: user.godot_voice_editor
 """
+_window_id = None
+_window_pid = None
+_scene_lists = {}
+
+
+def active_endpoint(force: bool = False):
+    global _window_id, _window_pid
+    window = ui.active_window()
+    if window is None:
+        raise RuntimeError("Focus a connected Godot editor or game first.")
+    if force or window.id != _window_id or _window_pid is None:
+        _window_id, _window_pid = window.id, None
+        result = subprocess.run(
+            ["xprop", "-id", hex(window.id), "_NET_WM_PID"],
+            capture_output=True, text=True, timeout=1, check=True,
+        )
+        match = re.search(r"=\s*(\d+)\s*$", result.stdout)
+        if match is None:
+            raise RuntimeError("Cannot identify this window's process.")
+        _window_pid = match.group(1)
+    directory = Path(tempfile.gettempdir()) / f"talon-godot-{getpass.getuser()}" / _window_pid
+    state = json.loads((directory / "state.json").read_text(encoding="utf-8"))
+    if int(time.time() * 1000) - state.get("updated", 0) > 5000:
+        raise RuntimeError("This Godot voice connection is stale or reloading.")
+    return directory, state
+
+
+def update_connection(*_):
+    tags = []
+    commands = {"coordinate": {}, "text": {}, "none": {}}
+    try:
+        _, state = active_endpoint()
+        if state.get("kind", "editor") in ("editor", "game"):
+            tags.append("user.godot_voice_ui")
+            if state.get("kind", "editor") == "editor":
+                tags.append("user.godot_voice_editor")
+            elif state.get("commands"):
+                tags.append("user.godot_voice_scene_commands")
+                for entry in state["commands"]:
+                    if entry.get("argument") in commands:
+                        commands[entry["argument"]][entry["phrase"]] = entry["name"]
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+        pass
+    if set(connection_context.tags) != set(tags):
+        connection_context.tags = tags
+    for argument, list_name in (
+        ("coordinate", "godot_voice_coordinate_commands"),
+        ("text", "godot_voice_text_commands"),
+        ("none", "godot_voice_plain_commands"),
+    ):
+        key = "user." + list_name
+        if _scene_lists.get(key) != commands[argument]:
+            connection_context.lists[key] = commands[argument]
+            _scene_lists[key] = commands[argument]
+
+
+ui.register("win_focus", update_connection)
+cron.interval("500ms", update_connection)
 
 
 @mod.capture(rule="<user.number_signed_string> [(point | dot) <digit_string>]")
@@ -32,26 +93,11 @@ def godot_voice_number(m) -> float:
 def command(method: str, arguments: dict | None = None):
     # Talon can group several Godot windows into one app whose cached PID belongs
     # to an older editor. X11's active window PID is the actual command target.
-    window = ui.active_window()
-    if window is None:
-        raise RuntimeError("Focus the Godot editor first.")
-    pid_property = subprocess.run(
-        ["xprop", "-id", hex(window.id), "_NET_WM_PID"],
-        capture_output=True, text=True, timeout=1, check=True,
-    ).stdout
-    match = re.search(r"=\s*(\d+)\s*$", pid_property)
-    if match is None:
-        raise RuntimeError("Cannot identify this Godot window's process.")
-    directory = (
-        Path(tempfile.gettempdir())
-        / f"talon-godot-{getpass.getuser()}"
-        / match.group(1)
-    )
-    if not (directory / "state.json").is_file():
-        raise RuntimeError("Talon Voice is not connected to this editor. Run godot-voice/install.sh.")
-    state = json.loads((directory / "state.json").read_text(encoding="utf-8"))
-    if int(time.time() * 1000) - state.get("updated", 0) > 5000:
-        raise RuntimeError("This editor's voice endpoint is stale or busy reloading. Wait for Godot and try again.")
+    directory, state = active_endpoint(force=True)
+    if method == "game.command" and state.get("kind") != "game":
+        raise RuntimeError("Scene commands require a focused game window.")
+    if state.get("kind") == "game" and method not in ("status", "game.command") and not method.startswith("ui."):
+        raise RuntimeError("Editor commands cannot target a game window.")
     request_id = uuid.uuid4().hex
     request = directory / f"{request_id}.request.json"
     response = directory / f"{request_id}.response.json"
@@ -81,8 +127,17 @@ def command(method: str, arguments: dict | None = None):
 
 @mod.action_class
 class Actions:
+    def godot_voice_scene_command(name: str, argument: str = ""):
+        """Invoke an explicitly registered command in the focused game's current scene."""
+        command("game.command", {"name": name, "argument": argument})
+
+    def godot_voice_coordinate_command(name: str, letters: str, number: int):
+        """Pass spoken letters and a number to a registered coordinate command."""
+        coordinate = "".join(letters.split()).upper() + str(number)
+        command("game.command", {"name": name, "argument": coordinate})
+
     def godot_voice_command(method: str):
-        """Run a Godot editor command."""
+        """Run a command in the focused Godot editor or game."""
         result = command(method)
         if method == "status":
             actions.app.notify(f"Godot Voice connected: {len(result['hints'])} visible hints")
@@ -118,7 +173,7 @@ class Actions:
         command(scope + ".action", {"action": action})
 
     def godot_voice_ui(method: str, letters: str):
-        """Act on a green native editor UI badge."""
+        """Act on a green editor or game UI badge."""
         command("ui." + method, {"letters": letters.lower()})
 
     def godot_voice_ui_text(text: str, letters: str, submit: bool = False):

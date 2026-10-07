@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 try
 {
-    if (args.Length < 2) throw new ArgumentException("Usage: VoiceTools install PROJECT SOURCE | uninstall PROJECT SOURCE | mcp PROJECT METHOD JSON | call PROJECT METHOD [JSON] | status PROJECT");
+    if (args.Length < 2) throw new ArgumentException("Usage: VoiceTools install/uninstall PROJECT SOURCE | mcp PROJECT METHOD JSON | kernel PROJECT editor/game (code on stdin) | call/call-game PROJECT METHOD [JSON] | status/status-game PROJECT");
     string project = Path.GetFullPath(args[1]).TrimEnd(Path.DirectorySeparatorChar);
     switch (args[0])
     {
@@ -86,11 +86,28 @@ try
         case "mcp":
             Console.WriteLine((await Mcp(project, args[2], JsonSerializer.Deserialize<JsonElement>(args[3]))).ToString());
             break;
-        case "call":
-            Console.WriteLine((await Call(project, args[2], args.Length > 3 ? JsonSerializer.Deserialize<JsonElement>(args[3]) : new { })).ToString());
+        case "kernel":
+            if (args[2] is not ("editor" or "game")) throw new ArgumentException("Kernel target must be editor or game.");
+            using (var registry = JsonDocument.Parse(File.ReadAllText(Path.Combine(project, ".godot", "gdscript-mcp-" + args[2] + ".json"))))
+            {
+                var endpoint = new Uri(registry.RootElement.GetProperty("endpoint").GetString()!);
+                if (endpoint.Scheme != "http" || endpoint.Host != "127.0.0.1") throw new IOException("Kernel must use loopback HTTP.");
+                using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(35) };
+                http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", registry.RootElement.GetProperty("token").GetString());
+                using var body = new StringContent(JsonSerializer.Serialize(new { code = await Console.In.ReadToEndAsync() }), Encoding.UTF8, "application/json");
+                using var response = await http.PostAsync(new Uri(endpoint, "execute"), body);
+                string result = await response.Content.ReadAsStringAsync();
+                Console.WriteLine(result);
+                response.EnsureSuccessStatusCode();
+                using var parsed = JsonDocument.Parse(result);
+                if (parsed.RootElement.TryGetProperty("success", out var success) && !success.GetBoolean()) throw new IOException("Kernel cell failed; inspect its output before retrying.");
+            }
             break;
-        case "status":
-            Console.WriteLine(File.ReadAllText(Path.Combine(FindEndpoint(project), "state.json")));
+        case "call": case "call-game":
+            Console.WriteLine((await Call(project, args[2], args.Length > 3 ? JsonSerializer.Deserialize<JsonElement>(args[3]) : new { }, args[0] == "call-game" ? "game" : "editor")).ToString());
+            break;
+        case "status": case "status-game":
+            Console.WriteLine(File.ReadAllText(Path.Combine(FindEndpoint(project, args[0] == "status-game" ? "game" : "editor"), "state.json")));
             break;
         default: throw new ArgumentException("Unknown operation: " + args[0]);
     }
@@ -122,6 +139,14 @@ static void ConfigurePlugin(string project, bool enabled)
     string updated = section.Success
         ? original.Remove(section.Groups["body"].Index, section.Groups["body"].Length).Insert(section.Groups["body"].Index, body)
         : original + newline + "[editor_plugins]" + newline + body;
+    if (!enabled)
+    {
+        string runtime = "res://addons/talon_voice/VoiceRuntime.cs";
+        string uidFile = Path.Combine(project, "addons", "talon_voice", "VoiceRuntime.cs.uid");
+        string uid = File.Exists(uidFile) ? File.ReadAllText(uidFile).Trim() : "";
+        updated = Regex.Replace(updated, @"(?m)^TalonVoiceRuntime=\""\*(?<path>[^\""\r\n]+)\""\r?\n", match =>
+            match.Groups["path"].Value == runtime || uid.Length > 0 && match.Groups["path"].Value == uid ? "" : match.Value);
+    }
     if (updated != original) File.WriteAllText(config, updated);
 }
 
@@ -134,7 +159,7 @@ static async Task Run(string file, string[] arguments, string workingDirectory)
     if (process.ExitCode != 0) throw new IOException(file + " failed with exit code " + process.ExitCode);
 }
 
-static string FindEndpoint(string project)
+static string FindEndpoint(string project, string expectedKind = "editor")
 {
     string root = Path.Combine(Path.GetTempPath(), "talon-godot-" + Environment.UserName);
     var matches = new List<string>();
@@ -145,17 +170,19 @@ static string FindEndpoint(string project)
             {
                 using var state = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "state.json")));
                 if (state.RootElement.GetProperty("project").GetString()?.TrimEnd('/') != project) continue;
+                string actualKind = state.RootElement.TryGetProperty("kind", out var kind) ? kind.GetString()! : "editor";
+                if (actualKind != expectedKind) continue;
                 int pid = state.RootElement.GetProperty("pid").GetInt32();
                 if (!Process.GetProcessById(pid).HasExited) matches.Add(directory);
             }
             catch (Exception e) when (e is IOException or JsonException or ArgumentException) { }
         }
-    return matches.Count == 1 ? matches[0] : throw new IOException($"Expected one live Talon Voice editor for {project}; found {matches.Count}.");
+    return matches.Count == 1 ? matches[0] : throw new IOException($"Expected one live Talon Voice {expectedKind} for {project}; found {matches.Count}.");
 }
 
-static async Task<JsonElement> Call(string project, string method, object parameters)
+static async Task<JsonElement> Call(string project, string method, object parameters, string kind = "editor")
 {
-    string endpoint = FindEndpoint(project);
+    string endpoint = FindEndpoint(project, kind);
     string id = Guid.NewGuid().ToString("N");
     string request = Path.Combine(endpoint, id + ".request.json");
     string response = Path.Combine(endpoint, id + ".response.json");

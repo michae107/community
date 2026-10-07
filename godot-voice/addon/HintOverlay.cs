@@ -1,4 +1,4 @@
-#if TOOLS
+#if TOOLS || DEBUG
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,9 @@ namespace TalonVoice;
 [Tool]
 public partial class HintOverlay : Control
 {
+#if TOOLS
     internal NativeHints? Hints;
+#endif
     internal UiHints? UiHints;
     private List<(string Scope, string Letters, Rect2 Rect)> _drawTargets = new();
     private List<(string Scope, string Letters, Rect2 Rect)> _nextTargets = new();
@@ -19,8 +21,10 @@ public partial class HintOverlay : Control
     internal void UpdateVisuals(bool showNative)
     {
         _nextTargets.Clear();
+#if TOOLS
         if (showNative && Hints is { Enabled: true })
             foreach (var target in Hints.Targets) _nextTargets.Add((target.Scope, target.Letters, target.Rect));
+#endif
         if (UiHints is { Enabled: true })
         {
             Window window = GetWindow();
@@ -28,7 +32,7 @@ public partial class HintOverlay : Control
                 if (GodotObject.IsInstanceValid(target.Control) && target.Window == window)
                     _nextTargets.Add((target.Kind == "menu" ? "menu" : "ui", target.Letters, target.Rect));
         }
-        float scale = EditorInterface.Singleton.GetEditorScale();
+        float scale = UiEnvironment.Scale;
         bool changed = _lastPosition != GlobalPosition || _lastSize != Size || _lastScale != scale
             || _nextTargets.Count != _drawTargets.Count;
         for (int i = 0; !changed && i < _nextTargets.Count; i++) changed = _nextTargets[i] != _drawTargets[i];
@@ -41,7 +45,7 @@ public partial class HintOverlay : Control
     public override void _Draw()
     {
         Font font = GetThemeDefaultFont();
-        int size = (int)(12 * EditorInterface.Singleton.GetEditorScale());
+        int size = (int)(12 * UiEnvironment.Scale);
         // Draw only cached badge data: no editor traversal or live Control
         // dereferences during rendering, including after Inspector rebuilds.
         foreach (var target in _drawTargets)

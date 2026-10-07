@@ -1,5 +1,6 @@
-app: godot_voice_editor
+tag: user.godot_voice_ui
 -
+godot voice status: user.godot_voice_command("status")
 # Rango's established interaction vocabulary; no bare-letter/catch-all rule.
 # Explicit Godot aliases; shared "go down/up" and "scroll down/up" still work.
 up: key(up)
@@ -28,6 +29,3 @@ hints off: user.godot_voice_command("ui.hints.hide")
 hints (toggle | switch): user.godot_voice_command("ui.hints.toggle")
 hints refresh: user.godot_voice_command("ui.hints.reset")
 hints all: user.godot_voice_ui_scope("all")
-hints inspector: user.godot_voice_ui_scope("inspector")
-hints signals: user.godot_voice_ui_scope("signals")
-hints groups: user.godot_voice_ui_scope("groups")

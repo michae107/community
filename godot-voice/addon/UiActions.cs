@@ -1,4 +1,4 @@
-#if TOOLS
+#if TOOLS || DEBUG
 using Godot;
 using System;
 using System.Globalization;
@@ -12,11 +12,11 @@ internal sealed record UiPointerAction(UiTarget Target, Vector2 Position, MouseB
     {
         UiActions.Guard(Target);
         // Do not activate a newly moved control or a stale hover target.
-        if (!Target.Control.GetGlobalRect().HasPoint(Position)) throw new InvalidOperationException("The control moved; say the command again.");
+        if (!UiEnvironment.Rect(Target.Control).HasPoint(Position)) throw new InvalidOperationException("The control moved; say the command again.");
         Viewport viewport = Target.Control.GetViewport();
         var hovered = viewport.GuiGetHoveredControl();
         if (hovered != Target.Control && !(hovered is not null && Target.Control.IsAncestorOf(hovered)))
-            throw new InvalidOperationException("Godot did not focus the pointer on that control; focus the editor and try again.");
+            throw new InvalidOperationException("Godot did not focus the pointer on that control; focus its window and try again.");
         viewport.PushInput(new InputEventMouseButton { Position = Position, GlobalPosition = Position, ButtonIndex = Button, ButtonMask = Button == MouseButton.Left ? MouseButtonMask.Left : MouseButtonMask.Right, Pressed = true, DoubleClick = Twice }, inLocalCoords: true);
         viewport.PushInput(new InputEventMouseButton { Position = Position, GlobalPosition = Position, ButtonIndex = Button, Pressed = false }, inLocalCoords: true);
     }
@@ -30,15 +30,19 @@ internal static class UiActions
         if (target.Menu is PopupMenu menu) { menu.SetFocusedItem(target.Index); return null; }
         target.Window.GrabFocus();
         Control control = target.Control;
+#if TOOLS
         if (control is EditorSpinSlider)
         {
             // Opens the editor's own numeric input; its native focus is deferred.
             return Click(target);
         }
+#endif
         if (control is SpinBox spin) control = spin.GetLineEdit();
         if (control.FocusMode == Control.FocusModeEnum.None)
             throw new InvalidOperationException("This control has no keyboard focus. Say click or menu instead.");
+#if TOOLS
         if (control is EditorProperty property) property.Select();
+#endif
         control.GrabFocus();
         Hover(target);
         if (selectAll && control is LineEdit line) line.SelectAll();
@@ -49,6 +53,23 @@ internal static class UiActions
     public static UiPointerAction? Click(UiTarget target, MouseButton button = MouseButton.Left, bool twice = false)
     {
         Guard(target);
+#if TOOLS
+        if (target.Kind == "section-checkbox" && button == MouseButton.Left)
+        {
+            string property = UiHints.SectionCheckProperty(target.Control);
+            var inspector = Ancestors(target.Control).OfType<EditorInspector>().FirstOrDefault();
+            var edited = inspector?.GetEditedObject();
+            if (property.Length == 0 || !GodotObject.IsInstanceValid(edited))
+                throw new InvalidOperationException("That section checkbox is no longer available.");
+            Variant value = edited!.Get(property);
+            if (value.VariantType != Variant.Type.Bool)
+                throw new InvalidOperationException("That section no longer has a boolean switch.");
+            // Route through the Inspector's own edit/undo pipeline. Its
+            // property_edited notification refreshes the switch and folding.
+            target.Control.EmitSignal("section_toggled_by_user", property, !value.AsBool());
+            return null;
+        }
+#endif
         if (target.Menu is PopupMenu menu)
         {
             if (button != MouseButton.Left) throw new InvalidOperationException("Menu items only support activation.");
@@ -110,7 +131,11 @@ internal static class UiActions
     public static object SetText(UiTarget target, string value, bool submit)
     {
         Guard(target);
-        if (target.Control is EditorSpinSlider or SpinBox or Slider)
+        if (target.Control is SpinBox or Slider
+#if TOOLS
+            or EditorSpinSlider
+#endif
+            )
         {
             if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double number) || !double.IsFinite(number))
                 throw new InvalidOperationException("Use a numeric value for this field (for example 'set air to minus two point five').");
@@ -159,11 +184,32 @@ internal static class UiActions
         Guard(target);
         var scroll = Ancestors(target.Control).OfType<ScrollContainer>().FirstOrDefault();
         if (scroll is not null) scroll.ScrollVertical += direction * Math.Clamp(amount, 1, 100) * 80;
-        else if (EditorControls.Walk(target.Control).OfType<VScrollBar>().FirstOrDefault(b => b.IsVisibleInTree()) is VScrollBar bar)
+        else if (UiEnvironment.Walk(target.Control).OfType<VScrollBar>().FirstOrDefault(b => b.IsVisibleInTree()) is VScrollBar bar)
             bar.Value += direction * Math.Clamp(amount, 1, 100) * 80;
         else throw new InvalidOperationException("This control has no scrollable panel.");
     }
 
+    public static bool NavigateGameScroll(InputEventKey input, Viewport viewport)
+    {
+        if (!input.Pressed || input.Keycode is not (Key.Pageup or Key.Pagedown)
+            || input.CtrlPressed || input.AltPressed || input.MetaPressed || input.ShiftPressed) return false;
+        Control? focused = viewport.GuiGetFocusOwner();
+        if (focused is null || !focused.IsVisibleInTree()) return false;
+        for (Node? node = focused; node is not null; node = node.GetParent())
+        {
+            // These controls page their own contents. Do not page an outer
+            // panel instead, even when their internal input owns the focus.
+            if (node is TextEdit or Tree or ItemList or PopupMenu) return false;
+            if (node is not ScrollContainer scroll) continue;
+            var bar = scroll.GetVScrollBar();
+            if (!bar.IsVisibleInTree() || bar.MaxValue <= bar.Page) continue;
+            bar.Value += (input.Keycode == Key.Pageup ? -1 : 1) * Math.Max(80, bar.Page * .9);
+            return true;
+        }
+        return false;
+    }
+
+#if TOOLS
     public static bool NavigateInspector(InputEventKey input)
     {
         if (!input.Pressed || input.Keycode is not (Key.Up or Key.Down or Key.Pageup or Key.Pagedown)
@@ -202,6 +248,7 @@ internal static class UiActions
         return true;
     }
 
+#endif
     private static System.Collections.Generic.IEnumerable<Node> Ancestors(Node node)
     {
         for (Node? current = node; current is not null; current = current.GetParent()) yield return current;
@@ -210,12 +257,18 @@ internal static class UiActions
     public static void Guard(UiTarget target)
     {
         if (!UiHints.Visible(target.Control, target.Rect)) throw new InvalidOperationException("That control is no longer visible.");
-        if (EditorControls.ActiveDialog() is Window dialog && target.Window != dialog)
+        if (UiEnvironment.ActiveDialog() is Window dialog && target.Window != dialog)
             throw new InvalidOperationException("Use a hint in the active popup or cancel it first.");
         if (target.Control is BaseButton { Disabled: true } or LineEdit { Editable: false }
-            or TextEdit { Editable: false } or EditorSpinSlider { ReadOnly: true }
+            or TextEdit { Editable: false }
+#if TOOLS
+            or EditorSpinSlider { ReadOnly: true }
+#endif
             or SpinBox { Editable: false } or Slider { Editable: false }
-            || Ancestors(target.Control).OfType<EditorProperty>().Any(p => p.ReadOnly))
+#if TOOLS
+            || Ancestors(target.Control).OfType<EditorProperty>().Any(p => p.ReadOnly)
+#endif
+            )
             throw new InvalidOperationException("This control is read-only or disabled.");
         if (target.Menu is PopupMenu menu && (target.Index >= menu.ItemCount || menu.IsItemDisabled(target.Index) || menu.IsItemSeparator(target.Index)))
             throw new InvalidOperationException("That menu item is unavailable.");

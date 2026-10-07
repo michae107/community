@@ -1,4 +1,4 @@
-#if TOOLS
+#if TOOLS || DEBUG
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -13,7 +13,7 @@ internal sealed record UiTarget(string Key, string Text, string Kind, Control Co
     public Window Window => Control.GetWindow();
 }
 
-// Native editor UI only: never traverse edited scenes or game viewports.
+// Editor chrome or runtime UI roots, never both in the same process.
 internal sealed class UiHints
 {
     private readonly Dictionary<string, string> _labels = new();
@@ -27,7 +27,7 @@ internal sealed class UiHints
     public void Refresh()
     {
         Targets.Clear();
-        Window? dialog = EditorControls.ActiveDialog();
+        Window? dialog = UiEnvironment.ActiveDialog();
         _inDialog = dialog is not null;
         if (dialog is not null)
         {
@@ -35,6 +35,13 @@ internal sealed class UiHints
             Visit(dialog, dialog);
             return;
         }
+        if (!Engine.IsEditorHint())
+        {
+            foreach (Control control in UiEnvironment.RuntimeUiRoots(UiEnvironment.RuntimeRoot))
+                Visit(control, UiEnvironment.RuntimeRoot);
+            return;
+        }
+#if TOOLS
         Node? root = Scope switch
         {
             "inspector" => EditorControls.Find("InspectorDock"),
@@ -48,6 +55,7 @@ internal sealed class UiHints
         if (Scope != "all" && EditorControls.Find("EditorTitleBar") is Node toolbar)
             Visit(toolbar, window);
         if (root is not null) Visit(root, window);
+#endif
     }
 
     private void Visit(Node node, Window window)
@@ -63,18 +71,27 @@ internal sealed class UiHints
             if (control is ItemList list) { if (!IsExistingTree(list)) AddList(list); return; }
             if (control is TabBar tabs) { if (!IsExistingTree(tabs)) AddTabs(tabs); return; }
             if (control is BaseButton button && !button.Disabled || control is LineEdit { Editable: true }
-                || control is TextEdit { Editable: true } || control is EditorSpinSlider { ReadOnly: false }
+                || control is TextEdit { Editable: true }
+#if TOOLS
+                || control is EditorSpinSlider { ReadOnly: false }
+#endif
                 || control is SpinBox { Editable: true } || control is Slider { Editable: true })
             {
-                if (!ReadOnlyProperty(control) && !(control is EditorSpinSlider && HasVisibleInput(control))) AddControl(control, kind, control.GetGlobalRect());
+                bool nestedInput = false;
+#if TOOLS
+                nestedInput = control is EditorSpinSlider && HasVisibleInput(control);
+#endif
+                if (!ReadOnlyProperty(control) && !nestedInput) AddControl(control, kind, UiEnvironment.Rect(control));
                 // SpinBox's internal LineEdit is the same input, not another target.
-                if (control is SpinBox || control is EditorSpinSlider && !HasVisibleInput(control)) return;
+                if (control is SpinBox) return;
+#if TOOLS
+                if (control is EditorSpinSlider && !HasVisibleInput(control)) return;
+#endif
             }
+#if TOOLS
             else if (kind == "EditorInspectorSection")
             {
-                var rect = control.GetGlobalRect();
-                rect.Size = new Vector2(rect.Size.X, Math.Min(rect.Size.Y, 28 * EditorInterface.Singleton.GetEditorScale()));
-                AddControl(control, "section", rect);
+                AddInspectorSection(control);
             }
             else if (control is EditorProperty property)
             {
@@ -84,22 +101,62 @@ internal sealed class UiHints
                 rect.Size = new Vector2(rect.Size.X * .42f, Math.Min(rect.Size.Y, 24 * EditorInterface.Singleton.GetEditorScale()));
                 if (!property.ReadOnly) AddControl(property, "property", rect);
             }
+#endif
         }
         int count = node.GetChildCount(includeInternal: true);
         for (int i = 0; i < count; i++) Visit(node.GetChild(i, includeInternal: true), window);
     }
 
     private static bool HasVisibleInput(Control control) => control.GetChildren().OfType<LineEdit>().Any(c => c.IsVisibleInTree());
+#if TOOLS
+    private void AddInspectorSection(Control section)
+    {
+        float scale = UiEnvironment.Scale;
+        var header = new Rect2(Vector2.Zero, new Vector2(section.Size.X, Math.Min(section.Size.Y, 28 * scale)));
+        if (!Visible(section, UiEnvironment.LocalRect(section, header))) return;
+        string property = SectionCheckProperty(section);
+        if (property.Length > 0)
+        {
+            // Godot draws this switch itself, without a CheckBox child. Its
+            // property tooltip identifies checkable sections (e.g. shadow_enabled).
+            float margin = Mathf.Round(2 * scale);
+            var contents = section.Call("get_vbox").AsGodotObject() as Node;
+            var firstProperty = contents is null ? null : UiEnvironment.Walk(contents).OfType<EditorProperty>().FirstOrDefault();
+            if (firstProperty is { Keying: true })
+                margin += section.GetThemeIcon("GuiAnimationKey", "EditorIcons").GetWidth() + 8 * scale;
+            var font = section.GetThemeFont("font", "Label");
+            int fontSize = section.GetThemeFontSize("font_size", "Label");
+            float width = section.GetThemeIcon("GuiChecked", "EditorIcons").GetWidth()
+                + font.GetStringSize(section.Tr("On"), fontSize: fontSize).X + 2 * scale;
+            var check = new Rect2(new Vector2(section.IsLayoutRtl() ? margin : section.Size.X - margin - width, 0), new Vector2(width, header.Size.Y));
+            Add(new("section-check:" + section.GetInstanceId() + ":" + property, property + " / On", "section-checkbox", section, UiEnvironment.LocalRect(section, check)));
+            // Keep the folding badge on the label side, away from the switch.
+            header.Size = new Vector2(section.Size.X * .55f, header.Size.Y);
+            if (section.IsLayoutRtl()) header.Position = new Vector2(section.Size.X - header.Size.X, 0);
+        }
+        AddControl(section, "section", UiEnvironment.LocalRect(section, header));
+    }
+
+    internal static string SectionCheckProperty(Control section)
+    {
+        if (section.GetClass().ToString() != "EditorInspectorSection" || !section.HasSignal("section_toggled_by_user")) return "";
+        string[] parts = section.TooltipText.Split('|');
+        return parts.Length == 3 && parts[0] == "property" ? parts[2] : "";
+    }
+#endif
+
     private static bool ReadOnlyProperty(Control control)
     {
+#if TOOLS
         for (Node? parent = control; parent is not null; parent = parent.GetParent())
             if (parent is EditorProperty { ReadOnly: true }) return true;
+#endif
         return false;
     }
 
     private bool IsExistingTree(Control control)
     {
-        if (_inDialog) return false;
+        if (_inDialog || !Engine.IsEditorHint()) return false;
         for (Node? parent = control; parent is not null; parent = parent.GetParent())
             if (parent.GetClass().ToString() is "SceneTreeDock" or "FileSystemDock" or "ScriptEditor" or "EditorSceneTabs"
                 || control is TabBar && parent.Name.ToString().StartsWith("DockSlot")) return true;
@@ -116,33 +173,37 @@ internal sealed class UiHints
     {
         string text = control switch
         {
+#if TOOLS
             EditorProperty property => property.Label,
+            EditorSpinSlider spin => spin.Label,
+#endif
             Button button => button.Text,
             LineEdit { Secret: true } secret => secret.PlaceholderText,
             LineEdit line => line.PlaceholderText.Length > 0 ? line.PlaceholderText : line.Text,
-            EditorSpinSlider spin => spin.Label,
             _ => control.TooltipText,
         };
+#if TOOLS
         for (Node? parent = control.GetParent(); parent is Control; parent = parent.GetParent())
             if (parent is EditorProperty property) return property.Label + (text.Length > 0 ? " / " + text : "");
+#endif
         if (text.Length == 0) text = control.TooltipText;
         return text.Length > 0 ? text : control.GetClass().ToString();
     }
 
     private void AddTree(Tree tree)
     {
-        TreeItem? item = EditorControls.FirstVisibleRow(tree);
+        TreeItem? item = UiEnvironment.FirstVisibleRow(tree);
         for (int visited = 0; item is not null && visited < 20000; visited++, item = item.GetNextVisible())
         {
             var rect = tree.GetItemAreaRect(item, 0);
             if (rect.Position.Y >= tree.Size.Y) break;
-            rect.Position += tree.GlobalPosition;
+            rect = UiEnvironment.LocalRect(tree, rect);
             Add(new("row:" + item.GetInstanceId(), item.GetText(0), "row", tree, rect, item));
             for (int i = 0; i < item.GetButtonCount(0); i++)
             {
                 if (item.IsButtonDisabled(0, i)) continue;
                 var button = tree.GetItemAreaRect(item, 0, i);
-                button.Position += tree.GlobalPosition;
+                button = UiEnvironment.LocalRect(tree, button);
                 Add(new("row-button:" + item.GetInstanceId() + ":" + i, item.GetText(0) + " / button " + (i + 1), "row-button", tree, button, item, i));
             }
         }
@@ -153,7 +214,7 @@ internal sealed class UiHints
         for (int i = 0; i < list.ItemCount; i++)
         {
             if (list.IsItemDisabled(i)) continue;
-            var rect = list.GetItemRect(i); rect.Position += list.GlobalPosition;
+            var rect = UiEnvironment.LocalRect(list, list.GetItemRect(i));
             Add(new("item:" + list.GetInstanceId() + ":" + i, list.GetItemText(i), "item", list, rect, Index: i));
         }
     }
@@ -164,7 +225,7 @@ internal sealed class UiHints
         {
             var rect = tabs.GetTabRect(i);
             if (tabs.IsTabDisabled(i) || tabs.GetTabIdxAtPoint(rect.GetCenter()) != i) continue;
-            rect.Position += tabs.GlobalPosition;
+            rect = UiEnvironment.LocalRect(tabs, rect);
             Add(new("tab:" + tabs.GetInstanceId() + ":" + i, tabs.GetTabTitle(i), "tab", tabs, rect, Index: i));
         }
     }
@@ -183,7 +244,7 @@ internal sealed class UiHints
             string title = menus.Tr(menus.GetMenuTitle(i));
             Vector2 size = font.GetStringSize(title, fontSize: fontSize) + padding;
             float x = menus.IsLayoutRtl() ? menus.Size.X - offset - size.X : offset;
-            var rect = new Rect2(menus.GlobalPosition + new Vector2(x, 0), size);
+            var rect = UiEnvironment.LocalRect(menus, new Rect2(new Vector2(x, 0), size));
             if (!menus.IsMenuDisabled(i))
                 Add(new("menubar:" + menus.GetInstanceId() + ":" + i, title, "menubar", menus, rect, Index: i));
             offset += (int)(size.X + menus.GetThemeConstant("h_separation"));
@@ -194,11 +255,11 @@ internal sealed class UiHints
     {
         // Godot does not expose filtered row indices. Never display incorrect
         // option badges while a native menu search is rearranging/hiding rows.
-        if (EditorControls.Walk(menu).OfType<LineEdit>().Any(l => l.IsVisibleInTree() && l.Text.Length > 0)) return;
+        if (UiEnvironment.Walk(menu).OfType<LineEdit>().Any(l => l.IsVisibleInTree() && l.Text.Length > 0)) return;
         // PopupMenu exposes indices, not row rectangles. Reconstruct the native
         // row layout from its item canvas and theme, including scroll clipping.
-        var canvas = EditorControls.Walk(menu).OfType<Control>().FirstOrDefault(c => c.GetClass().ToString() == "PopupMenuItems")
-            ?? EditorControls.Walk(menu).OfType<ScrollContainer>().FirstOrDefault()?.GetChildren().OfType<Control>().FirstOrDefault();
+        var canvas = UiEnvironment.Walk(menu).OfType<Control>().FirstOrDefault(c => c.GetClass().ToString() == "PopupMenuItems")
+            ?? UiEnvironment.Walk(menu).OfType<ScrollContainer>().FirstOrDefault()?.GetChildren().OfType<Control>().FirstOrDefault();
         if (canvas is null) return;
         Font font = menu.GetThemeFont("font");
         int size = menu.GetThemeFontSize("font_size");
@@ -232,7 +293,7 @@ internal sealed class UiHints
             }
             if (!separator && (menu.IsItemCheckable(i) || menu.IsItemRadioCheckable(i))) height = Math.Max(height, checkHeight);
             if (separator) height = Math.Max(height, separatorHeight);
-            var rect = new Rect2(canvas.GlobalPosition + new Vector2(0, y), new Vector2(canvas.Size.X, height + gap));
+            var rect = UiEnvironment.LocalRect(canvas, new Rect2(new Vector2(0, y), new Vector2(canvas.Size.X, height + gap)));
             if (!separator && !menu.IsItemDisabled(i))
                 // A rebuilt menu must not reuse a visible letter for different
                 // content just because it occupies the same array index.
@@ -245,9 +306,10 @@ internal sealed class UiHints
     internal static bool Visible(Control control, Rect2 rect)
     {
         if (!GodotObject.IsInstanceValid(control) || !control.IsVisibleInTree() || rect.Size.X <= 2 || rect.Size.Y <= 2) return false;
-        if (!control.GetGlobalRect().HasPoint(rect.GetCenter())) return false;
+        if (!control.GetViewport().GetVisibleRect().HasPoint(rect.GetCenter())) return false;
+        if (!UiEnvironment.Rect(control).HasPoint(rect.GetCenter())) return false;
         for (Node? node = control.GetParent(); node is Control parent; node = node.GetParent())
-            if (parent.ClipContents && !parent.GetGlobalRect().HasPoint(rect.GetCenter())) return false;
+            if (parent.ClipContents && !UiEnvironment.Rect(parent).HasPoint(rect.GetCenter())) return false;
         return true;
     }
 

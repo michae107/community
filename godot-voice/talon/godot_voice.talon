@@ -1,11 +1,13 @@
-app: godot_voice_editor
+tag: user.godot_voice_editor
 -
 tag(): user.tabs
 # Explicit Godot-only context. No global dictation or catch-all focus rule.
-godot voice status: user.godot_voice_command("status")
 godot marks on: user.godot_voice_command("hints.show")
 godot marks off: user.godot_voice_command("hints.hide")
 godot marks reset: user.godot_voice_command("hints.reset")
+hints inspector: user.godot_voice_ui_scope("inspector")
+hints signals: user.godot_voice_ui_scope("signals")
+hints groups: user.godot_voice_ui_scope("groups")
 
 bar (tree | explore | file): user.godot_voice_focus("files")
 bar inspector: user.godot_voice_focus("inspector")
