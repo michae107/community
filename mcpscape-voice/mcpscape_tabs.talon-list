@@ -1,0 +1,28 @@
+list: user.mcpscape_tab
+-
+inventory: inventory
+bag: inventory
+stats: stats
+skills: stats
+settings: settings
+options: settings
+equipment: equipment
+gear: equipment
+worn: equipment
+prayer: prayer
+prayers: prayer
+magic: magic
+spells: magic
+spell book: magic
+quests: quests
+quest: quests
+combat: combat
+attack styles: combat
+friends: friends
+ignore: ignore
+clan: clan
+emotes: emotes
+music: music
+summoning: summoning
+logout: logout
+log out: logout
