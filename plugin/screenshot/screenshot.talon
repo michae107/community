@@ -10,3 +10,6 @@ not tag: user.screenshot_disabled
 ^grab screen clip$: user.screenshot_clipboard()
 ^grab screen <number_small> clip$: user.screenshot_clipboard(number_small)
 ^grab window clip$: user.screenshot_window_clipboard()
+
+# Capture the focused application window, wherever it is, directly to clipboard.
+^picture$: user.screenshot_window_clipboard()

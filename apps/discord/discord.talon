@@ -24,6 +24,8 @@ pick (jif | gif | gift): user.discord_gif_picker()
 pick sticker: user.discord_sticker_picker()
 
 # Misc
+# Discord's Esc shortcut returns focus to the message box
+(message | chat) box: key(escape)
 mark inbox channel read: user.discord_mark_inbox_read()
 [toggle] (mute | unmute): user.discord_mute()
 (mute | unmute) and sleep:
