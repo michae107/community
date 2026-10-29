@@ -1,0 +1,14 @@
+list: user.mcpscape_direction
+-
+north: north
+north east: northeast
+northeast: northeast
+east: east
+south east: southeast
+southeast: southeast
+south: south
+south west: southwest
+southwest: southwest
+west: west
+north west: northwest
+northwest: northwest

@@ -1,6 +1,0 @@
-{
-  "name": "Talon.UnityVoice.Editor",
-  "rootNamespace": "Talon.UnityVoice",
-  "includePlatforms": ["Editor"],
-  "autoReferenced": true
-}
