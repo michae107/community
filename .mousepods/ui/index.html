@@ -1,0 +1,4287 @@
+<!doctype html>
+<!-- Local modification: English interface and automatic reconnect controls. -->
+<!-- SPDX-License-Identifier: Apache-2.0 · Copyright 2026 Matteo Gaudioso (starman-tech) -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AirPods Mouse</title>
+    <style>
+      :root {
+        --bg: #f5f5f7;
+        --panel: rgba(255, 255, 255, 0.72);
+        --card: #ffffff;
+        --card2: #f2f2f7;
+        --text: #1d1d1f;
+        --text2: #6e6e73;
+        --line: rgba(0, 0, 0, 0.08);
+        --accent: #0071e3;
+        --green: #34c759;
+        --orange: #ff9f0a;
+        --red: #ff3b30;
+        --purple: #af52de;
+        --teal: #30b0c7;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+        --side: rgba(246, 246, 248, 0.78);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #000;
+          --panel: rgba(28, 28, 30, 0.72);
+          --card: #1c1c1e;
+          --card2: #2c2c2e;
+          --text: #f5f5f7;
+          --text2: #98989d;
+          --line: rgba(255, 255, 255, 0.09);
+          --accent: #0a84ff;
+          --green: #30d158;
+          --orange: #ff9f0a;
+          --red: #ff453a;
+          --purple: #bf5af2;
+          --teal: #40c8e0;
+          --shadow:
+            0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 30px rgba(0, 0, 0, 0.35);
+          --side: rgba(22, 22, 24, 0.82);
+        }
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+          "Segoe UI", Cantarell, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+        font-size: 14px;
+        letter-spacing: -0.01em;
+        display: flex;
+        overflow: hidden;
+      }
+      .mono {
+        font-family:
+          "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+        font-size: 12px;
+      }
+      /* ---------- barre latérale */
+      aside {
+        width: 236px;
+        flex: none;
+        background: var(--side);
+        backdrop-filter: saturate(180%) blur(30px);
+        border-right: 1px solid var(--line);
+        padding: 18px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px 18px;
+      }
+      .brand .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: linear-gradient(145deg, #fff, #d9d9de);
+        box-shadow:
+          inset 0 0 0 1px rgba(0, 0, 0, 0.06),
+          0 2px 6px rgba(0, 0, 0, 0.12);
+        display: grid;
+        place-items: center;
+      }
+      @media (prefers-color-scheme: dark) {
+        .brand .logo {
+          background: linear-gradient(145deg, #3a3a3c, #1c1c1e);
+        }
+      }
+      .brand b {
+        font-size: 15px;
+        font-weight: 650;
+        display: block;
+      }
+      .brand small {
+        color: var(--text2);
+        font-size: 12px;
+      }
+      nav a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 500;
+        cursor: pointer;
+        user-select: none;
+      }
+      nav a:hover {
+        background: var(--line);
+      }
+      nav a.on {
+        background: var(--accent);
+        color: #fff;
+      }
+      nav a .ic {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-size: 12px;
+        flex: none;
+      }
+      nav a.on .ic {
+        background: rgba(255, 255, 255, 0.22) !important;
+      }
+      .side-foot {
+        margin-top: auto;
+        padding: 10px;
+        color: var(--text2);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text2);
+        margin-right: 6px;
+        vertical-align: 1px;
+      }
+      .dot.ok {
+        background: var(--green);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
+      }
+      .dot.warn {
+        background: var(--orange);
+      }
+      /* ---------- contenu */
+      main {
+        flex: 1;
+        overflow-y: auto;
+        padding: 30px 38px 60px;
+      }
+      .page {
+        display: none;
+        max-width: 1080px;
+        margin: 0 auto;
+        animation: fade 0.25s ease;
+      }
+      .page.on {
+        display: block;
+      }
+      .shot .page {
+        animation: none !important;
+      }
+      @keyframes fade {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 4px;
+      }
+      .sub {
+        color: var(--text2);
+        margin-bottom: 22px;
+        font-size: 14px;
+      }
+      h2 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text2);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin: 26px 4px 10px;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .g2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .g3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .g4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      @media (max-width: 1100px) {
+        .g4 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .g3 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .card {
+        background: var(--card);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 18px 20px;
+        position: relative;
+      }
+      .card h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card .hint {
+        color: var(--text2);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+      .big {
+        font-size: 30px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      .kv {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--line);
+        gap: 14px;
+      }
+      .kv:last-child {
+        border-bottom: 0;
+      }
+      .kv span:first-child {
+        color: var(--text2);
+      }
+      .kv span:last-child {
+        text-align: right;
+        font-weight: 500;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--card2);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .pill.g {
+        color: var(--green);
+      }
+      .pill.o {
+        color: var(--orange);
+      }
+      .pill.r {
+        color: var(--red);
+      }
+      .pill.b {
+        color: var(--accent);
+      }
+      /* buttons */
+      .btn {
+        appearance: none;
+        border: 0;
+        background: var(--card2);
+        color: var(--text);
+        font: inherit;
+        font-weight: 600;
+        padding: 9px 16px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition:
+          transform 0.08s,
+          filter 0.15s;
+      }
+      .btn:hover {
+        filter: brightness(0.97);
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn.p {
+        background: var(--accent);
+        color: #fff;
+      }
+      .btn.d {
+        background: color-mix(in srgb, var(--red) 14%, var(--card2));
+        color: var(--red);
+      }
+      .btn.sm {
+        padding: 6px 11px;
+        font-size: 12.5px;
+        border-radius: 8px;
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: default;
+        transform: none;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      /* contrôle segmenté */
+      .seg {
+        display: inline-flex;
+        background: var(--card2);
+        border-radius: 10px;
+        padding: 3px;
+        gap: 2px;
+      }
+      .seg button {
+        border: 0;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        font-weight: 500;
+        padding: 7px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .seg button.on {
+        background: var(--card);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        font-weight: 600;
+      }
+      @media (prefers-color-scheme: dark) {
+        .seg button.on {
+          background: #636366;
+        }
+      }
+      /* interrupteur */
+      .sw {
+        position: relative;
+        width: 46px;
+        height: 28px;
+        flex: none;
+      }
+      .sw input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .sw span {
+        position: absolute;
+        inset: 0;
+        background: var(--card2);
+        border-radius: 999px;
+        transition: 0.2s;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px var(--line);
+      }
+      .sw span:before {
+        content: "";
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        left: 2px;
+        top: 2px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: 0.2s;
+      }
+      .sw input:checked + span {
+        background: var(--green);
+      }
+      .sw input:checked + span:before {
+        transform: translateX(18px);
+      }
+      /* curseurs */
+      .set {
+        display: grid;
+        grid-template-columns: 1fr 200px 64px;
+        align-items: center;
+        gap: 14px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .set:last-child {
+        border-bottom: 0;
+      }
+      .set label {
+        font-weight: 500;
+      }
+      .set label small {
+        display: block;
+        color: var(--text2);
+        font-weight: 400;
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      .set output {
+        text-align: right;
+        color: var(--text2);
+        font-variant-numeric: tabular-nums;
+      }
+      .set.toggle {
+        grid-template-columns: 1fr auto;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--card2);
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow:
+          0 1px 4px rgba(0, 0, 0, 0.3),
+          0 0 0 0.5px rgba(0, 0, 0, 0.06);
+        cursor: pointer;
+      }
+      select,
+      input[type="text"],
+      input[type="number"] {
+        font: inherit;
+        background: var(--card2);
+        color: var(--text);
+        border: 0;
+        border-radius: 8px;
+        padding: 7px 10px;
+      }
+      /* batterie */
+      .bat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .ring {
+        width: 84px;
+        height: 84px;
+      }
+      .ring circle {
+        fill: none;
+        stroke-width: 8;
+      }
+      .ring .bg {
+        stroke: var(--card2);
+      }
+      .ring .fg {
+        stroke: var(--green);
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+        transition: stroke-dashoffset 0.6s;
+      }
+      .bat b {
+        font-size: 15px;
+      }
+      .bat small {
+        color: var(--text2);
+        font-size: 12px;
+      }
+      /* 3D */
+      .stage {
+        height: 300px;
+        perspective: 900px;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(
+          circle at 50% 40%,
+          var(--card2),
+          transparent 70%
+        );
+        border-radius: 12px;
+      }
+      .pod {
+        position: relative;
+        width: 1px;
+        height: 1px;
+        transform-style: preserve-3d;
+        transition: transform 0.03s linear;
+      }
+      .pod .part {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+      .face {
+        position: absolute;
+        background: linear-gradient(160deg, #ffffff, #d4d4d9);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        backface-visibility: visible;
+      }
+      @media (prefers-color-scheme: dark) {
+        .face {
+          background: linear-gradient(160deg, #f0f0f3, #b9b9c0);
+        }
+      }
+      .axisx,
+      .axisy,
+      .axisz {
+        position: absolute;
+        height: 3px;
+        width: 120px;
+        left: 0;
+        top: 0;
+        transform-origin: 0 50%;
+        border-radius: 2px;
+      }
+      .axisx {
+        background: var(--red);
+      }
+      .axisy {
+        background: var(--green);
+        transform: rotateZ(-90deg);
+      }
+      .axisz {
+        background: var(--accent);
+        transform: rotateY(90deg);
+      }
+      canvas {
+        width: 100%;
+        display: block;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        color: var(--text2);
+        font-size: 12px;
+        margin-top: 8px;
+      }
+      .legend i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        margin-right: 6px;
+        vertical-align: -1px;
+      }
+      .screen {
+        aspect-ratio: 16/10;
+        background: var(--card2);
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+      }
+      .screen .c {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        margin: -7px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent);
+      }
+      .screen .t {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        margin: -5px;
+        border-radius: 50%;
+        border: 2px solid var(--orange);
+      }
+      .vec {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 6px 10px;
+        align-items: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .bar {
+        height: 6px;
+        background: var(--card2);
+        border-radius: 3px;
+        position: relative;
+        overflow: hidden;
+      }
+      .bar i {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        background: var(--accent);
+        border-radius: 3px;
+      }
+      /* calibration */
+      .calib-hero {
+        text-align: center;
+        padding: 34px 20px;
+      }
+      .calib-hero .instr {
+        font-size: 26px;
+        font-weight: 650;
+        margin: 16px 0 8px;
+        letter-spacing: -0.02em;
+        min-height: 70px;
+      }
+      .steps {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        margin-top: 16px;
+      }
+      .steps i {
+        width: 28px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--card2);
+      }
+      .steps i.done {
+        background: var(--green);
+      }
+      .steps i.cur {
+        background: var(--accent);
+      }
+      .pring {
+        width: 150px;
+        height: 150px;
+        margin: 0 auto;
+      }
+      .pring circle {
+        fill: none;
+        stroke-width: 10;
+      }
+      .pring .bg {
+        stroke: var(--card2);
+      }
+      .pring .fg {
+        stroke: var(--accent);
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+        transition: stroke-dashoffset 0.12s;
+      }
+      /* tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        text-align: left;
+        color: var(--text2);
+        font-weight: 600;
+        font-size: 12px;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      td {
+        padding: 7px 8px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      .log {
+        max-height: 520px;
+        overflow: auto;
+      }
+      .log td {
+        white-space: nowrap;
+      }
+      .log td.hx {
+        white-space: normal;
+        word-break: break-all;
+      }
+      .tx {
+        color: var(--accent);
+      }
+      .rx {
+        color: var(--green);
+      }
+      .toast {
+        position: fixed;
+        bottom: 22px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--panel);
+        backdrop-filter: blur(20px);
+        padding: 10px 18px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        transition: 0.25s;
+        font-weight: 600;
+      }
+      .toast.on {
+        opacity: 1;
+        transform: translateX(-50%);
+      }
+      .empty {
+        color: var(--text2);
+        text-align: center;
+        padding: 26px;
+      }
+      .disc li {
+        margin: 0 0 10px 18px;
+        line-height: 1.5;
+      }
+      code {
+        background: var(--card2);
+        padding: 1px 6px;
+        border-radius: 5px;
+      }
+      /* labo */
+      .cue {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: color-mix(in srgb, var(--bg) 94%, transparent);
+        backdrop-filter: blur(18px);
+        text-align: center;
+        padding: 30px;
+      }
+      .cue.on {
+        display: flex;
+      }
+      .cue .t {
+        font-size: clamp(34px, 7vw, 84px);
+        font-weight: 750;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+      }
+      .cue .s {
+        font-size: clamp(16px, 2.2vw, 26px);
+        color: var(--text2);
+        max-width: 900px;
+      }
+      .cue .cd {
+        font-size: clamp(40px, 8vw, 96px);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--accent);
+      }
+      .cue .pb {
+        width: min(720px, 80vw);
+        height: 10px;
+        border-radius: 5px;
+        background: var(--card2);
+        overflow: hidden;
+      }
+      .cue .pb i {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+        width: 0;
+      }
+      .cue.go .t {
+        color: var(--green);
+      }
+      .cue.rest .t {
+        color: var(--text2);
+      }
+      .exp {
+        color: var(--orange);
+        font-weight: 600;
+      }
+      .pedal-test {
+        width: 100%;
+        min-height: 100px;
+        margin-top: 12px;
+        touch-action: none;
+        user-select: none;
+      }
+      .pedal-result {
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <div class="brand">
+        <div class="logo">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <path
+              d="M7 4a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3h.5v8a1.5 1.5 0 0 0 3 0V7a3 3 0 0 0-3-3H7zM17 4a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-.5v8a1.5 1.5 0 0 1-3 0V7a3 3 0 0 1 3-3h.5z"
+            />
+          </svg>
+        </div>
+        <div><b>AirPods Mouse</b><small id="side-model">—</small></div>
+      </div>
+      <nav id="nav">
+        <a data-p="overview" class="on"
+          ><span class="ic" style="background: #0a84ff">◉</span>Overview</a
+        >
+        <a data-p="motion"
+          ><span class="ic" style="background: #30d158">∿</span>Motion</a
+        >
+        <a data-p="settings"
+          ><span class="ic" style="background: #8e8e93">⚙︎</span>Settings</a
+        >
+        <a data-p="calib"
+          ><span class="ic" style="background: #ff9f0a">◎</span>Calibration</a
+        >
+        <a data-p="gestures"
+          ><span class="ic" style="background: #ff375f">☺︎</span>Gestures</a
+        >
+        <a data-p="labo"
+          ><span class="ic" style="background: #64d2ff">⚗︎</span>Lab</a
+        >
+        <a data-p="sims"
+          ><span class="ic" style="background: #ff9500">✈︎</span>Simulators</a
+        >
+        <a data-p="garmin"
+          ><span class="ic" style="background: #007aff">⌚︎</span>Garmin</a
+        >
+        <a data-p="sensors"
+          ><span class="ic" style="background: #af52de">⌬</span>Sensors</a
+        >
+        <a data-p="device"
+          ><span class="ic" style="background: #ff375f">ⓘ</span>AirPods</a
+        >
+        <a data-p="log"
+          ><span class="ic" style="background: #5e5ce6">≡</span>Packet log</a
+        >
+        <a data-p="about"
+          ><span class="ic" style="background: #30b0c7">★</span>Discoveries</a
+        >
+      </nav>
+      <div class="side-foot">
+        <div>
+          <span class="dot" id="side-dot"></span><span id="side-status">—</span>
+        </div>
+        <div id="side-rate" class="mono" style="margin-top: 4px"></div>
+      </div>
+    </aside>
+
+    <main>
+      <!-- =============================== APERÇU -->
+      <section class="page on" id="p-overview">
+        <h1 id="ov-name">AirPods</h1>
+        <div class="sub" id="ov-sub">Connecting…</div>
+        <div class="grid g4" id="ov-bat"></div>
+        <h2>Controls</h2>
+        <div class="grid g2">
+          <div class="card">
+            <h3>Cursor</h3>
+            <div
+              class="row"
+              style="justify-content: space-between; margin-bottom: 14px"
+            >
+              <div>
+                <div class="big" id="ov-state">—</div>
+                <div class="hint" id="ov-state-sub"></div>
+              </div>
+              <button class="btn p" id="ov-toggle">Pause</button>
+            </div>
+            <div class="row">
+              <button class="btn" data-cmd="recenter">Recenter</button>
+              <button class="btn" data-cmd="scroll" id="ov-scroll">
+                Scroll mode
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Mode &amp; source</h3>
+            <div class="kv">
+              <span>Mode</span
+              ><span
+                ><div class="seg" data-key="mode">
+                  <button data-v="souris">Mouse</button
+                  ><button data-v="pointeur">Pointer</button
+                  ><button data-v="glisse">Glide</button>
+                </div></span
+              >
+            </div>
+            <div class="kv">
+              <span>Source</span
+              ><span
+                ><div class="seg" data-key="source">
+                  <button data-v="auto">Auto</button
+                  ><button data-v="head">Head</button
+                  ><button data-v="case">Case</button
+                  ><button data-v="hand">In hand</button>
+                </div></span
+              >
+            </div>
+            <div class="hint" id="ov-src-hint" style="margin-top: 10px"></div>
+            <div class="hint" style="margin-top: 6px">
+              <b>Mouse</b> : turn or tilt your head or an AirPod ·
+              <b>Pointer</b> : aim at the screen like a laser pointer ·
+              <b>Glide</b> : slide a loose earbud across the table
+              (experimental)
+            </div>
+          </div>
+        </div>
+        <h2>Foot pedals</h2>
+        <div class="card">
+          <h3>
+            Left = left-click · middle = middle-click · right = right-click
+          </h3>
+          <p class="hint">
+            Hold the left or right pedal while moving your head to drag. Release
+            the pedal to drop. Middle-click opens links in a new tab.
+          </p>
+          <button class="btn pedal-test" id="pedal-test" type="button">
+            Move the cursor here and press a pedal to test it safely
+          </button>
+          <div class="hint pedal-result" id="pedal-result" role="status">
+            No pedal pressed yet. Clicks in the test area do not activate
+            anything.
+          </div>
+        </div>
+        <h2>Connection</h2>
+        <div class="grid g4">
+          <div class="card">
+            <div class="hint">Samples / second</div>
+            <div class="big" id="ov-rate">—</div>
+          </div>
+          <div class="card">
+            <div class="hint">Gaps (&gt;50 ms, last 2 s)</div>
+            <div class="big" id="ov-gaps">—</div>
+          </div>
+          <div class="card">
+            <div class="hint">Protocol</div>
+            <div
+              style="font-size: 17px; font-weight: 650; margin-top: 6px"
+              id="ov-proto"
+            >
+              —
+            </div>
+          </div>
+          <div class="card">
+            <div class="hint">Axis profile</div>
+            <div
+              style="font-size: 17px; font-weight: 650; margin-top: 6px"
+              id="ov-prof"
+            >
+              —
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================== MOUVEMENT -->
+      <section class="page" id="p-motion">
+        <h1>Motion</h1>
+        <div class="sub">Live raw and processed motion data.</div>
+        <div class="grid g2">
+          <div class="card">
+            <h3>
+              Orientation (earbud quaternion)
+              <button class="btn sm" id="m-zero" style="margin-left: auto">
+                Zero
+              </button>
+            </h3>
+            <div class="stage">
+              <div class="pod" id="pod">
+                <div class="axisx"></div>
+                <div class="axisy"></div>
+                <div class="axisz"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Cursor</h3>
+            <div class="screen" id="scr">
+              <div class="t" id="scr-t"></div>
+              <div class="c" id="scr-c"></div>
+            </div>
+            <div class="kv" style="margin-top: 8px">
+              <span>Cursor speed</span><span class="mono" id="m-vel">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 16px">
+          <h3>Angular velocity (°/s)</h3>
+          <canvas id="chart" height="220"></canvas>
+          <div class="legend">
+            <span
+              ><i style="background: var(--accent)"></i>Yaw (horizontal)</span
+            ><span
+              ><i style="background: var(--green)"></i>Pitch (vertical)</span
+            ><span><i style="background: var(--orange)"></i>Roll (tilt)</span>
+          </div>
+        </div>
+        <div class="grid g3" style="margin-top: 16px">
+          <div class="card">
+            <h3>Gyroscope (°/s, earbud axes)</h3>
+            <div class="vec" id="m-w"></div>
+          </div>
+          <div class="card">
+            <h3>Gravity (g, earbud axes)</h3>
+            <div class="vec" id="m-g"></div>
+          </div>
+          <div class="card">
+            <h3>Gyroscope bias</h3>
+            <div class="vec" id="m-b"></div>
+            <div class="hint" id="m-bok" style="margin-top: 8px"></div>
+          </div>
+          <div class="card">
+            <h3>Acceleration (m/s², gravity removed)</h3>
+            <div class="vec" id="m-a"></div>
+          </div>
+          <div class="card">
+            <h3>Glide: estimated speed (cm/s)</h3>
+            <div class="vec" id="m-gv"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================== RÉGLAGES -->
+      <section class="page" id="p-settings">
+        <h1>Settings</h1>
+        <div class="sub">Changes apply immediately.</div>
+        <div class="card">
+          <h3>Sensitivity</h3>
+          <div class="set">
+            <label>Horizontal</label
+            ><input
+              type="range"
+              data-k="sensitivity_x"
+              min="0.1"
+              max="5"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Vertical</label
+            ><input
+              type="range"
+              data-k="sensitivity_y"
+              min="0.1"
+              max="5"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set toggle">
+            <label>Invert horizontal movement</label
+            ><label class="sw"
+              ><input type="checkbox" data-k="invert_x" /><span></span
+            ></label>
+          </div>
+          <div class="set toggle">
+            <label>Invert vertical movement</label
+            ><label class="sw"
+              ><input type="checkbox" data-k="invert_y" /><span></span
+            ></label>
+          </div>
+        </div>
+        <h2>Mouse mode</h2>
+        <div class="card">
+          <div class="set toggle">
+            <label
+              >Remember movement beyond screen edges<small
+                >Keep the cursor at an edge until your head returns. Recenter
+                clears the extra movement. Available on X11.</small
+              ></label
+            >
+            <label class="sw"
+              ><input
+                type="checkbox"
+                data-k="souris.remember_edges" /><span></span
+            ></label>
+          </div>
+          <div class="set">
+            <label>Speed<small>pixels per degree of rotation</small></label
+            ><input
+              type="range"
+              data-k="souris.px_per_deg"
+              min="2"
+              max="80"
+              step="0.5"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Acceleration<small>faster movements travel farther</small></label
+            ><input
+              type="range"
+              data-k="souris.acceleration"
+              min="0"
+              max="4"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Dead zone<small
+                >ignore motion below this speed (°/s) for stability</small
+              ></label
+            ><input
+              type="range"
+              data-k="souris.rate_deadzone_dps"
+              min="0"
+              max="15"
+              step="0.1"
+            /><output></output>
+          </div>
+        </div>
+        <h2>Pointer mode</h2>
+        <div class="card">
+          <div class="set">
+            <label>Range<small>% of screen per degree</small></label
+            ><input
+              type="range"
+              data-k="pointeur.screen_pct_per_deg"
+              min="0.3"
+              max="10"
+              step="0.05"
+            /><output></output>
+          </div>
+        </div>
+        <h2>Glide mode (loose earbud on the table; experimental)</h2>
+        <div class="card">
+          <div class="set">
+            <label>Speed<small>pixels per centimeter of sliding</small></label
+            ><input
+              type="range"
+              data-k="glisse.px_per_cm"
+              min="5"
+              max="200"
+              step="1"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Motion threshold<small
+                >ignore acceleration below this level (m/s²)</small
+              ></label
+            ><input
+              type="range"
+              data-k="glisse.accel_deadzone"
+              min="0"
+              max="0.6"
+              step="0.01"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Stillness detection<small
+                >acceleration below which the device is considered still
+                (m/s²)</small
+              ></label
+            ><input
+              type="range"
+              data-k="glisse.still_acc"
+              min="0.1"
+              max="1.5"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Inertia<small
+                >seconds; larger values keep gliding longer</small
+              ></label
+            ><input
+              type="range"
+              data-k="glisse.leak_s"
+              min="0.2"
+              max="6"
+              step="0.1"
+            /><output></output>
+          </div>
+        </div>
+        <h2>Smoothness</h2>
+        <div class="card">
+          <div class="set">
+            <label>Smoothing<small>0 = raw, 1 = very smooth</small></label
+            ><input
+              type="range"
+              data-k="smoothing"
+              min="0"
+              max="1"
+              step="0.01"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Display lag<small
+                >seconds; smaller values respond faster</small
+              ></label
+            ><input
+              type="range"
+              data-k="render_lag_s"
+              min="0"
+              max="0.15"
+              step="0.005"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Sensor interval<small
+                >microseconds between samples (5000 = 200 Hz)</small
+              ></label
+            ><input
+              type="range"
+              data-k="sensor_interval_us"
+              min="5000"
+              max="40000"
+              step="1000"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Cursor refresh rate<small>frames per second</small></label
+            ><input
+              type="range"
+              data-k="render_hz"
+              min="30"
+              max="240"
+              step="10"
+            /><output></output>
+          </div>
+        </div>
+        <h2>Clicks</h2>
+        <div class="card">
+          <div class="set toggle">
+            <label
+              >Stem presses<small
+                >single = left-click · double = right-click · triple = scroll ·
+                hold = pause</small
+              ></label
+            ><label class="sw"
+              ><input type="checkbox" data-k="stem.enabled" /><span></span
+            ></label>
+          </div>
+          <div class="set toggle">
+            <label
+              >Quick head tilt<small
+                >right shoulder = left-click · left shoulder =
+                right-click</small
+              ></label
+            ><label class="sw"
+              ><input type="checkbox" data-k="roll_click.enabled" /><span></span
+            ></label>
+          </div>
+          <div class="set">
+            <label>Tilt threshold<small>degrees</small></label
+            ><input
+              type="range"
+              data-k="roll_click.trigger_deg"
+              min="6"
+              max="40"
+              step="1"
+            /><output></output>
+          </div>
+          <div class="set toggle">
+            <label
+              >Dwell click<small
+                >click automatically when the cursor stays still</small
+              ></label
+            ><label class="sw"
+              ><input
+                type="checkbox"
+                data-k="dwell_click.enabled" /><span></span
+            ></label>
+          </div>
+          <div class="set">
+            <label>Dwell time<small>seconds</small></label
+            ><input
+              type="range"
+              data-k="dwell_click.time_s"
+              min="0.4"
+              max="3"
+              step="0.1"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Scroll speed</label
+            ><input
+              type="range"
+              data-k="scroll.lines_per_deg"
+              min="0.05"
+              max="1.5"
+              step="0.05"
+            /><output></output>
+          </div>
+        </div>
+        <h2>System</h2>
+        <div class="card">
+          <div class="set toggle">
+            <label
+              >Resume when AirPods reconnect<small
+                >Automatically enable mouse control after reconnecting</small
+              ></label
+            >
+            <label class="sw"
+              ><input
+                type="checkbox"
+                data-k="resume_on_reconnect" /><span></span
+            ></label>
+          </div>
+          <div class="set toggle">
+            <label>Automatically connect to paired AirPods</label>
+            <label class="sw"
+              ><input type="checkbox" data-k="auto_connect" /><span></span
+            ></label>
+          </div>
+          <div class="set toggle">
+            <label>Notifications</label
+            ><label class="sw"
+              ><input type="checkbox" data-k="notifications" /><span></span
+            ></label>
+          </div>
+          <div class="set">
+            <label
+              >Gyroscope<small
+                >°/s per sensor unit (scale calibration)</small
+              ></label
+            ><input
+              type="range"
+              data-k="gyro_dps_per_lsb"
+              min="0.03"
+              max="0.5"
+              step="0.001"
+            /><output></output>
+          </div>
+        </div>
+        <div class="hint" style="margin: 18px 4px 0">
+          Head tracking for simulators (OpenTrack, virtual joystick): see
+          <a onclick="go('sims')" style="cursor: pointer; color: var(--accent)"
+            >Simulators</a
+          >.
+        </div>
+      </section>
+
+      <!-- =============================== CALIBRATION -->
+      <section class="page" id="p-calib">
+        <h1>Calibration</h1>
+        <div class="sub">
+          A profile for each model and source (head, case, in hand). About 15
+          seconds.
+        </div>
+        <div class="card calib-hero">
+          <div class="row" style="justify-content: center; gap: 14px">
+            <div class="seg" id="cal-flow">
+              <button data-v="souris">Rotation (mouse)</button
+              ><button data-v="pointeur">Pointer + screen corners</button
+              ><button data-v="glisse">Table glide</button>
+            </div>
+            <div class="seg" id="cal-src">
+              <button data-v="auto" class="on">Auto</button
+              ><button data-v="head">Head</button
+              ><button data-v="case">Case</button
+              ><button data-v="hand">In hand</button>
+            </div>
+          </div>
+          <div class="instr" id="cal-instr">Ready to calibrate</div>
+          <div class="hint" id="cal-hint">
+            Cursor movement pauses during calibration.
+          </div>
+          <div
+            class="hint"
+            id="cal-msg"
+            style="color: var(--orange); margin-top: 8px; font-weight: 600"
+          ></div>
+          <svg class="pring" viewBox="0 0 120 120" style="margin-top: 18px">
+            <circle class="bg" cx="60" cy="60" r="50" />
+            <circle
+              class="fg"
+              id="cal-ring"
+              cx="60"
+              cy="60"
+              r="50"
+              stroke-dasharray="314.16"
+              stroke-dashoffset="314.16"
+            />
+          </svg>
+          <div class="steps" id="cal-steps"></div>
+          <div class="row" style="justify-content: center; margin-top: 22px">
+            <button class="btn p" id="cal-start">Start</button
+            ><button class="btn" id="cal-cancel">Cancel</button>
+          </div>
+        </div>
+        <h2>Saved profiles</h2>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Profile</th>
+                <th>Contents</th>
+              </tr>
+            </thead>
+            <tbody id="cal-prof"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =============================== GESTES -->
+      <section class="page" id="p-gestures">
+        <h1>Gestures</h1>
+        <div class="sub">
+          Head and jaw gestures. A double teeth click opens a 2-second action
+          window; actions are ignored outside that window.
+        </div>
+        <div class="grid g3">
+          <div class="card">
+            <h3>Status</h3>
+            <div class="set toggle" style="padding-top: 0">
+              <label>Enable gestures</label
+              ><label class="sw"
+                ><input type="checkbox" id="g-en" /><span></span
+              ></label>
+            </div>
+            <div class="set toggle">
+              <label
+                >Require activation<small
+                  >double teeth click before each action</small
+                ></label
+              ><label class="sw"
+                ><input
+                  type="checkbox"
+                  data-g="require_activation" /><span></span
+              ></label>
+            </div>
+            <div class="kv">
+              <span>Action window</span><span id="g-armed">—</span>
+            </div>
+            <div class="kv">
+              <span>Rejection</span><span id="g-flags">—</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Sensor (internal timestamps)</h3>
+            <div class="kv"><span>Source</span><span id="g-src">—</span></div>
+            <div class="kv">
+              <span>Actual sample rate</span
+              ><span class="mono" id="g-rate">—</span>
+            </div>
+            <div class="kv">
+              <span>Gaps (&gt;30 ms)</span
+              ><span class="mono" id="g-gaps">—</span>
+            </div>
+            <div class="kv">
+              <span>Interpolated</span><span class="mono" id="g-interp">—</span>
+            </div>
+            <div class="kv">
+              <span>Duplicates</span><span class="mono" id="g-dup">—</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Labeled recording (CSV)</h3>
+            <div class="row" style="margin-bottom: 10px">
+              <input
+                type="text"
+                id="g-rec-name"
+                placeholder="file name"
+                style="flex: 1"
+              /><input
+                type="text"
+                id="g-rec-label"
+                placeholder="label (e.g. nod)"
+                style="width: 130px"
+              />
+            </div>
+            <div class="row">
+              <button class="btn p sm" id="g-rec-start">Record</button
+              ><button class="btn sm" id="g-rec-lab">Change label</button
+              ><button class="btn d sm" id="g-rec-stop">Stop</button>
+            </div>
+            <div class="hint" id="g-rec-info" style="margin-top: 8px">
+              captures/private/*.csv — replay:
+              <code>python gestures.py --replay recording.csv</code>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 16px">
+          <h3>
+            Live signals
+            <span class="hint" style="margin-left: auto"
+              >last 4 seconds · markers = detected gestures</span
+            >
+          </h3>
+          <canvas id="g-chart" height="220"></canvas>
+          <div class="legend">
+            <span
+              ><i style="background: var(--red)"></i>High-pass acceleration
+              (m/s² ×20)</span
+            ><span><i style="background: var(--accent)"></i>Yaw</span
+            ><span><i style="background: var(--green)"></i>Pitch</span
+            ><span><i style="background: var(--orange)"></i>Roll (°/s)</span>
+          </div>
+        </div>
+        <div class="grid g2" style="margin-top: 16px">
+          <div class="card">
+            <h3>Recent gestures</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Gesture</th>
+                  <th>Confidence</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="g-events">
+                <tr>
+                  <td colspan="3" class="empty">No gestures</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Personal calibration</h3>
+            <div class="hint" style="margin-bottom: 10px">
+              Repeat the gesture 10 times. The threshold is set to 60% of your
+              median peak. Detection is relaxed and actions are disabled during
+              calibration.
+            </div>
+            <div class="row">
+              <select id="g-cal-g">
+                <option value="teeth_click">Teeth click</option>
+                <option value="nod">Nod (yes)</option>
+                <option value="shake">Shake (no)</option>
+                <option value="tilt">Tilt</option>
+                <option value="look">Hold gaze up/down</option>
+                <option value="jaw_clench">Jaw clench (experimental)</option>
+              </select>
+              <button class="btn p sm" id="g-cal-start">Start</button
+              ><button class="btn sm" id="g-cal-cancel">Cancel</button>
+            </div>
+            <div class="big" id="g-cal-prog" style="margin-top: 12px">—</div>
+            <div class="hint" id="g-cal-res"></div>
+          </div>
+        </div>
+        <h2>Thresholds</h2>
+        <div class="card" id="g-sliders">
+          <div class="set">
+            <label
+              >Teeth click threshold<small>m/s² (high-pass peak)</small></label
+            ><input
+              type="range"
+              data-g="click_thresh"
+              min="0.2"
+              max="6"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Maximum double-click gap<small
+                >seconds between teeth clicks</small
+              ></label
+            ><input
+              type="range"
+              data-g="double_max_s"
+              min="0.2"
+              max="0.8"
+              step="0.01"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Action window<small
+                >seconds after the double teeth click</small
+              ></label
+            ><input
+              type="range"
+              data-g="window_s"
+              min="0.5"
+              max="5"
+              step="0.1"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Nod amplitude<small>degrees per movement</small></label
+            ><input
+              type="range"
+              data-g="nod_deg"
+              min="2"
+              max="30"
+              step="0.5"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Shake amplitude<small>degrees per movement</small></label
+            ><input
+              type="range"
+              data-g="shake_deg"
+              min="2"
+              max="30"
+              step="0.5"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Minimum movement speed<small>°/s</small></label
+            ><input
+              type="range"
+              data-g="lobe_dps"
+              min="10"
+              max="150"
+              step="1"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Tilt angle<small>degrees, held for 0.25 seconds</small></label
+            ><input
+              type="range"
+              data-g="tilt_deg"
+              min="5"
+              max="40"
+              step="0.5"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Up/down gaze angle<small>degrees, held</small></label
+            ><input
+              type="range"
+              data-g="look_deg"
+              min="5"
+              max="40"
+              step="0.5"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Gaze hold time<small>seconds</small></label
+            ><input
+              type="range"
+              data-g="look_hold_s"
+              min="0.2"
+              max="2"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Walking threshold<small
+                >vertical RMS acceleration (m/s², 1.4–2.6 Hz)</small
+              ></label
+            ><input
+              type="range"
+              data-g="walk_rms"
+              min="0.1"
+              max="3"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Chewing impulses<small
+                >in 3 seconds to suspend teeth clicks</small
+              ></label
+            ><input
+              type="range"
+              data-g="chew_count"
+              min="3"
+              max="10"
+              step="1"
+            /><output></output>
+          </div>
+          <div class="set toggle">
+            <label
+              >Raw IMU ~200 Hz<small
+                >raw HID accelerometer + gyro; mouse (devmotion6) drops to 50 Hz
+                while gestures are enabled</small
+              ></label
+            ><label class="sw"
+              ><input type="checkbox" data-g="use_raw_imu" /><span></span
+            ></label>
+          </div>
+          <div class="set toggle">
+            <label
+              >Jaw clench (experimental)<small
+                >sustained weak vibration &gt;0.6 seconds; unverified on
+                AirPods</small
+              ></label
+            ><label class="sw"
+              ><input type="checkbox" data-g="clench_enabled" /><span></span
+            ></label>
+          </div>
+        </div>
+        <h2>Actions</h2>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Gesture</th>
+                <th>Command</th>
+              </tr>
+            </thead>
+            <tbody id="g-map"></tbody>
+          </table>
+          <div class="hint" style="margin-top: 8px">
+            Sideways jaw movement is not detected (no reliable signal
+            identified); reserved for experiments. The side of a teeth click is
+            unknown until
+            <code>click_side_axis</code> is configured.
+          </div>
+        </div>
+        <h2>Silent speech — experimental</h2>
+        <div class="card">
+          <div class="hint" style="margin-bottom: 10px">
+            Silently mouth a word while holding the button. Record about 10
+            examples per word. Evaluate measures leave-one-out accuracy against
+            chance (500 permutations). If p &gt;0.05, the IMU is not reliably
+            detecting the word.
+          </div>
+          <div class="row">
+            <input
+              type="text"
+              id="sp-word"
+              placeholder="word to learn (leave blank to recognize)"
+              style="flex: 1"
+            />
+            <button class="btn p" id="sp-hold">Hold to record</button
+            ><button class="btn sm" id="sp-eval">Evaluate</button
+            ><button class="btn d sm" id="sp-clear">Clear all</button>
+          </div>
+          <div class="kv" style="margin-top: 8px">
+            <span>Learned words</span><span id="sp-words">—</span>
+          </div>
+          <div class="kv">
+            <span>Latest result</span><span id="sp-last">—</span>
+          </div>
+          <div class="kv">
+            <span>Evaluation</span><span id="sp-eval-res">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="p-labo">
+        <h1>Lab</h1>
+        <div class="sub">
+          Live measurements and guided sessions. The Lab detector deliberately
+          uses a low threshold (0.15 m/s² plus 3 × noise) to show teeth clicks
+          too soft for normal detection. Instructions appear on screen.
+        </div>
+        <div class="grid g3">
+          <div class="card">
+            <h3>Signal</h3>
+            <div class="kv"><span>Source</span><span id="lb-src">—</span></div>
+            <div class="kv">
+              <span>Background noise (p90)</span
+              ><span class="mono" id="lb-noise">—</span>
+            </div>
+            <div class="kv">
+              <span>Lab threshold</span><span class="mono" id="lb-thr">—</span>
+            </div>
+            <div class="kv">
+              <span>Active threshold (click_thresh)</span
+              ><span class="mono" id="lb-real">—</span>
+            </div>
+            <div class="hint" id="lb-warn" style="margin-top: 6px"></div>
+          </div>
+          <div class="card" style="grid-column: span 2">
+            <h3>Guided session</h3>
+            <div class="row" style="margin-bottom: 10px">
+              <div class="seg" id="lb-proto">
+                <button data-v="dents" class="on">Teeth</button
+                ><button data-v="mouvements">Movements</button
+                ><button data-v="mots">Words <span class="exp">β</span></button>
+              </div>
+              <label class="hint"
+                >repetitions
+                <input
+                  type="number"
+                  id="lb-reps"
+                  min="2"
+                  max="20"
+                  placeholder="auto"
+                  style="width: 70px"
+              /></label>
+            </div>
+            <div
+              class="row"
+              id="lb-words-row"
+              style="display: none; margin-bottom: 10px"
+            >
+              <input
+                type="text"
+                id="lb-words"
+                value="yes, no, click, menu, stop"
+                style="flex: 1"
+              /><span class="hint"
+                >5 words, 10 examples each (random order)</span
+              >
+            </div>
+            <div
+              class="hint"
+              id="lb-proto-desc"
+              style="margin-bottom: 10px"
+            ></div>
+            <div class="row">
+              <button class="btn p" id="lb-start">Start session</button
+              ><span class="hint" id="lb-sess-info"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 16px">
+          <h3>
+            Live
+            <span class="hint" style="margin-left: auto"
+              >last 5 seconds · full sample rate</span
+            >
+          </h3>
+          <canvas id="lb-chart" height="240"></canvas>
+          <div class="legend">
+            <span
+              ><i style="background: var(--red)"></i>|High-pass acceleration|
+              (m/s², left scale)</span
+            ><span
+              ><i style="background: var(--accent)"></i>|Gyro| (°/s, right
+              scale)</span
+            ><span><i style="background: var(--text2)"></i>impulse</span
+            ><span
+              ><i style="background: var(--purple)"></i>detected gesture
+              (Lab)</span
+            >
+          </div>
+        </div>
+        <div class="card" style="margin-top: 16px">
+          <h3>Recent brief impulses</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ago</th>
+                <th>Peak strength</th>
+                <th>Duration</th>
+                <th>Dominant axis</th>
+                <th>Gyro mean / max</th>
+                <th>Lab threshold</th>
+                <th>Active threshold</th>
+              </tr>
+            </thead>
+            <tbody id="lb-spikes">
+              <tr>
+                <td colspan="7" class="empty">No impulses</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h2>Results</h2>
+        <div class="card" id="lb-res">
+          <div class="empty">
+            Start a session to see results here. Each session is saved under
+            captures/private/labo_*.json (labeled raw frames for replay) and
+            *_bilan.json.
+          </div>
+        </div>
+      </section>
+      <div class="cue" id="lb-cue">
+        <div class="hint" id="cue-prog"></div>
+        <div class="t" id="cue-t"></div>
+        <div class="s" id="cue-s"></div>
+        <div class="cd" id="cue-cd"></div>
+        <div class="pb"><i id="cue-pb"></i></div>
+        <div class="hint" id="cue-n"></div>
+        <div class="hint" id="cue-next"></div>
+        <button class="btn d" id="cue-cancel">Cancel session</button>
+      </div>
+
+      <!-- =============================== CAPTEURS -->
+      <!-- =============================== SIMULATEURS -->
+      <section class="page" id="p-sims">
+        <h1>Simulators</h1>
+        <div class="sub">
+          Use AirPods like TrackIR: the game camera follows your head using the
+          earbuds’ orientation. Step-by-step guide:
+          <a
+            href="https://github.com/starman-tech/mousepods/blob/main/docs/SIMS.md"
+            target="_blank"
+            rel="noopener"
+            >docs/SIMS.md</a
+          >.
+        </div>
+        <div class="grid g2">
+          <div class="card">
+            <h3>Head pose</h3>
+            <div class="vec" id="sim-angles" style="margin: 4px 0 12px"></div>
+            <div class="kv"><span>Source</span><span id="sim-src">—</span></div>
+            <div class="kv">
+              <span>Active outputs</span><span id="sim-outs">—</span>
+            </div>
+            <div class="row" style="margin-top: 12px">
+              <button class="btn p" id="sim-recenter">Recenter</button
+              ><span class="hint"
+                >look straight ahead at the screen; Ctrl+Alt+C also
+                recenters</span
+              >
+            </div>
+          </div>
+          <div class="card">
+            <h3>Top view · side view</h3>
+            <canvas id="sim-cv" style="height: 190px"></canvas>
+            <div class="hint">
+              Positive yaw = look right · positive pitch = look up · positive
+              roll = right ear toward shoulder.
+            </div>
+          </div>
+        </div>
+        <h2>OpenTrack (Proton / Wine games, X-Plane, FlightGear…)</h2>
+        <div class="card">
+          <div class="set toggle" style="padding-top: 0">
+            <label
+              >Send to OpenTrack<small
+                >UDP over network packet: 6 doubles x, y, z (cm), yaw, pitch,
+                roll (°)</small
+              ></label
+            ><label class="sw"
+              ><input
+                type="checkbox"
+                data-k="opentrack.enabled"
+                id="ot-en" /><span></span
+            ></label>
+          </div>
+          <div class="set toggle">
+            <label
+              >Destination<small
+                >UDP host and port (default 127.0.0.1:4242)</small
+              ></label
+            >
+            <div class="row">
+              <input
+                type="text"
+                data-k="opentrack.host"
+                id="ot-host"
+                style="width: 130px"
+              /><input
+                type="number"
+                data-k="opentrack.port"
+                id="ot-port"
+                min="1"
+                max="65535"
+                style="width: 84px"
+              /><button class="btn sm" id="ot-apply">Apply</button>
+            </div>
+          </div>
+          <div class="kv"><span>Status</span><span id="ot-status">—</span></div>
+          <ol
+            class="disc"
+            style="margin-top: 12px; color: var(--text2); font-size: 12.5px"
+          >
+            <li>
+              OpenTrack : <b>Input</b> = “UDP over network”, port 4242. Begin
+              with <b>Start</b>.
+            </li>
+            <li>
+              <b>Output</b> : “Wine” (Proton / Wine games: DCS, MSFS, IL-2,
+              Elite, Star Citizen… protocol <i>Both</i>, choose your Proton
+              version and AppID), “X-Plane”, “FlightGear”, or “libevdev
+              joystick”.
+            </li>
+            <li>
+              OpenTrack curves and filters still apply; set smoothing below to 0
+              if using those. Recenter here or use OpenTrack’s Center key.
+            </li>
+          </ol>
+        </div>
+        <h2>Virtual joystick (native Linux games, without OpenTrack)</h2>
+        <div class="card">
+          <div class="set toggle" style="padding-top: 0">
+            <label
+              >Create “MousePods head tracker” joystick<small
+                >ABS_RX = yaw · ABS_RY = pitch · ABS_RZ = roll (same layout as
+                OpenTrack’s libevdev output)</small
+              ></label
+            ><label class="sw"
+              ><input
+                type="checkbox"
+                data-k="sim_joystick.enabled"
+                id="js-en" /><span></span
+            ></label>
+          </div>
+          <div class="set">
+            <label
+              >Full-scale yaw<small
+                >head rotation for maximum axis input; smaller values give more
+                in-game movement</small
+              ></label
+            ><input
+              type="range"
+              data-k="sim_joystick.full_yaw_deg"
+              min="15"
+              max="180"
+              step="5"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Full-scale pitch</label
+            ><input
+              type="range"
+              data-k="sim_joystick.full_pitch_deg"
+              min="10"
+              max="180"
+              step="5"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Full-scale roll</label
+            ><input
+              type="range"
+              data-k="sim_joystick.full_roll_deg"
+              min="10"
+              max="180"
+              step="5"
+            /><output></output>
+          </div>
+          <div class="kv"><span>Status</span><span id="js-status">—</span></div>
+          <ol
+            class="disc"
+            style="margin-top: 12px; color: var(--text2); font-size: 12.5px"
+          >
+            <li>
+              Euro Truck Simulator 2 / American Truck Simulator (native): bind
+              camera axes in <code>controls_linux.sii</code> (guide in
+              docs/SIMS.md).
+            </li>
+            <li>
+              War Thunder (native), FlightGear, X-Plane: bind
+              horizontal/vertical camera movement to joystick RX / RY axes.
+            </li>
+            <li>
+              Access to <code>/dev/uinput</code> is required (same permission as
+              the mouse).
+            </li>
+          </ol>
+        </div>
+        <h2>Shared settings</h2>
+        <div class="card">
+          <div class="set toggle" style="padding-top: 0">
+            <label
+              >Orientation source<small
+                >quaternion: AirPods sensor fusion, no pitch/roll drift · gyro:
+                integration (automatic fallback)</small
+              ></label
+            >
+            <div class="seg" id="ot-source">
+              <button data-v="quaternion">Quaternion</button
+              ><button data-v="gyro">Gyro</button>
+            </div>
+          </div>
+          <div class="set toggle">
+            <label>Pause the mouse during gameplay</label
+            ><label class="sw"
+              ><input
+                type="checkbox"
+                data-k="opentrack.pause_mouse_when_opentrack" /><span></span
+            ></label>
+          </div>
+          <div class="set toggle">
+            <label>Invert<small>yaw · pitch · roll</small></label>
+            <div class="row">
+              <label class="sw"
+                ><input
+                  type="checkbox"
+                  data-k="opentrack.invert_yaw" /><span></span></label
+              ><label class="sw"
+                ><input
+                  type="checkbox"
+                  data-k="opentrack.invert_pitch" /><span></span></label
+              ><label class="sw"
+                ><input
+                  type="checkbox"
+                  data-k="opentrack.invert_roll" /><span></span
+              ></label>
+            </div>
+          </div>
+          <div class="set">
+            <label>Yaw gain</label
+            ><input
+              type="range"
+              data-k="opentrack.scale_yaw"
+              min="0"
+              max="3"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Pitch gain</label
+            ><input
+              type="range"
+              data-k="opentrack.scale_pitch"
+              min="0"
+              max="3"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Roll gain</label
+            ><input
+              type="range"
+              data-k="opentrack.scale_roll"
+              min="0"
+              max="3"
+              step="0.05"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Smoothing<small
+                >0 = raw (OpenTrack also has filters)</small
+              ></label
+            ><input
+              type="range"
+              data-k="opentrack.smoothing"
+              min="0"
+              max="1"
+              step="0.01"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label>Send rate<small>packets per second</small></label
+            ><input
+              type="range"
+              data-k="opentrack.rate_hz"
+              min="30"
+              max="250"
+              step="10"
+            /><output></output>
+          </div>
+          <div class="set">
+            <label
+              >Slow yaw return to center<small
+                >seconds; 0 = disabled (yaw has no absolute reference)</small
+              ></label
+            ><input
+              type="range"
+              data-k="opentrack.yaw_autocenter_s"
+              min="0"
+              max="120"
+              step="5"
+            /><output></output>
+          </div>
+          <div class="set toggle">
+            <label
+              >Drift correction (gyro source)<small
+                >use gravity to correct pitch and roll</small
+              ></label
+            ><label class="sw"
+              ><input
+                type="checkbox"
+                data-k="opentrack.drift_correction" /><span></span
+            ></label>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================== GARMIN -->
+      <section class="page" id="p-garmin">
+        <h1>Garmin watch</h1>
+        <div class="sub">
+          Tilt your wrist to move the cursor; double-tap the watch to click.
+          Accelerometer only, 25 Hz (BLE service 16).
+        </div>
+        <div class="card" id="gm-missing" style="display: none">
+          <h3>Garmin module is not installed</h3>
+          <div class="hint">
+            The watch connection uses <b>garmin-ble</b>, installed separately:
+            <code>.venv/bin/pip install -r requirements-garmin.txt</code>, then
+            restart MousePods. garmin-ble is licensed under
+            <b>AGPL-3.0</b> (MousePods remains Apache-2.0); see
+            <code>docs/GARMIN.md</code>.
+          </div>
+          <div
+            class="hint mono"
+            id="gm-missing-why"
+            style="margin-top: 8px"
+          ></div>
+        </div>
+        <div id="gm-body">
+          <div class="grid g2">
+            <div class="card">
+              <h3>Connection</h3>
+              <div class="set toggle" style="padding-top: 0">
+                <label
+                  >Bluetooth address<small
+                    >watch must already be paired using bluetoothctl</small
+                  ></label
+                >
+                <div class="row">
+                  <input
+                    type="text"
+                    id="gm-addr"
+                    placeholder="XX:XX:XX:XX:XX:XX"
+                    style="width: 170px"
+                    spellcheck="false"
+                  /><button class="btn sm" id="gm-paired">
+                    Paired devices…
+                  </button>
+                </div>
+              </div>
+              <div id="gm-paired-list" class="row"></div>
+              <div class="kv">
+                <span>Status</span><span id="gm-status">—</span>
+              </div>
+              <div class="kv">
+                <span>Samples per second</span
+                ><span id="gm-rate" class="mono">—</span>
+              </div>
+              <div class="kv">
+                <span>Mouse</span><span id="gm-mouse">—</span>
+              </div>
+              <div class="kv">
+                <span>Clicks (double-tap)</span
+                ><span id="gm-clicks" class="mono">0</span>
+              </div>
+              <div class="kv">
+                <span>Calibrated range</span
+                ><span id="gm-range" class="mono">—</span>
+              </div>
+              <div class="set toggle">
+                <label
+                  >Connect at startup<small>when MousePods starts</small></label
+                ><label class="sw"
+                  ><input type="checkbox" data-gm="autoconnect" /><span></span
+                ></label>
+              </div>
+              <div class="row" style="margin-top: 10px">
+                <button class="btn p" id="gm-connect">Connect</button
+                ><button class="btn" id="gm-disconnect">Disconnect</button>
+              </div>
+              <div class="hint" style="margin-top: 10px">
+                The watch allows one BLE client: disconnect it from your phone
+                first (turn off phone Bluetooth).
+              </div>
+            </div>
+            <div class="card" style="text-align: center">
+              <h3>Calibration and tilt</h3>
+              <div
+                id="gm-prompt"
+                style="
+                  font-size: 19px;
+                  font-weight: 650;
+                  min-height: 50px;
+                  letter-spacing: -0.01em;
+                "
+              ></div>
+              <div class="hint" id="gm-step"></div>
+              <div
+                class="hint"
+                id="gm-err"
+                style="color: var(--orange); font-weight: 600; min-height: 18px"
+              ></div>
+              <canvas
+                id="gm-canvas"
+                style="
+                  width: 260px;
+                  height: 260px;
+                  margin: 8px auto 0;
+                  border-radius: 12px;
+                  background: var(--card2);
+                "
+              ></canvas>
+              <div class="steps" id="gm-steps"></div>
+              <div
+                class="row"
+                style="justify-content: center; margin-top: 14px"
+              >
+                <button class="btn" id="gm-recenter">Recenter</button
+                ><button class="btn" id="gm-recal">Recalibrate all</button
+                ><button class="btn" id="gm-pause">Pause</button>
+              </div>
+            </div>
+          </div>
+          <h2>Settings</h2>
+          <div class="card">
+            <div class="set toggle" style="padding-top: 0">
+              <label
+                >Mode<small
+                  >joystick: tilt controls speed · pointer: tilt controls screen
+                  position</small
+                ></label
+              >
+              <div class="seg" id="gm-mode">
+                <button data-v="joystick">Joystick</button
+                ><button data-v="pointeur">Pointer</button>
+              </div>
+            </div>
+            <div class="set">
+              <label
+                >Maximum speed<small
+                  >pixels per second at full tilt (joystick)</small
+                ></label
+              ><input
+                type="range"
+                data-gm="max_speed"
+                min="300"
+                max="5000"
+                step="100"
+              /><output></output>
+            </div>
+            <div class="set">
+              <label
+                >Dead zone<small
+                  >fraction of your range ignored around neutral</small
+                ></label
+              ><input
+                type="range"
+                data-gm="deadzone"
+                min="0.05"
+                max="0.5"
+                step="0.01"
+              /><output></output>
+            </div>
+            <div class="set">
+              <label
+                >Smoothing<small
+                  >seconds; smaller values respond faster</small
+                ></label
+              ><input
+                type="range"
+                data-gm="velocity_tau_s"
+                min="0.02"
+                max="0.25"
+                step="0.01"
+              /><output></output>
+            </div>
+            <div class="set">
+              <label
+                >Tap strength<small
+                  >g; threshold for a tap on the watch</small
+                ></label
+              ><input
+                type="range"
+                data-gm="tap_g"
+                min="0.2"
+                max="1.2"
+                step="0.05"
+              /><output></output>
+            </div>
+            <div class="set toggle">
+              <label>Invert<small>horizontal · vertical</small></label>
+              <div class="row">
+                <label class="sw"
+                  ><input
+                    type="checkbox"
+                    data-gm="invert_x" /><span></span></label
+                ><label class="sw"
+                  ><input type="checkbox" data-gm="invert_y" /><span></span
+                ></label>
+              </div>
+            </div>
+            <div class="set toggle">
+              <label
+                >Automatic recentering<small
+                  >neutral slowly follows the resting wrist to correct
+                  drift</small
+                ></label
+              ><label class="sw"
+                ><input type="checkbox" data-gm="auto_center" /><span></span
+              ></label>
+            </div>
+          </div>
+          <h2>Limitations</h2>
+          <div class="card">
+            <ul class="disc">
+              <li>
+                The watch streams only its<b>accelerometer</b> : 3 samples every
+                120 ms (24.9 Hz), 12-bit, ±8 g. No live gyroscope.
+              </li>
+              <li>
+                This measures<b>tilt</b> (gravity direction), rather than
+                rotation around vertical. Rendering at 120 Hz smooths the 25 Hz
+                samples.
+              </li>
+              <li>
+                Latency: about 80 ms batching inside the watch, plus BLE bursts
+                (130 ms median, 240 ms p95).
+              </li>
+              <li>
+                Lowering your arm (large tilt) pauses control. Tapping freezes
+                the cursor for 0.35 seconds and cancels the small movement
+                caused by the tap.
+              </li>
+            </ul>
+          </div>
+          <h2>Messages</h2>
+          <div class="card">
+            <table>
+              <tbody id="gm-msgs">
+                <tr>
+                  <td class="empty">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="p-sensors">
+        <h1>Sensors</h1>
+        <div class="sub">
+          Sensor services exposed by AirPods through Apple RemoteHID (HID over
+          AACP). Query and start each service separately.
+        </div>
+        <div class="grid g2" id="sens-list"></div>
+        <h2>Get/SetReport replies</h2>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Ago</th>
+                <th>Type</th>
+                <th>Device</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody id="sens-replies"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =============================== AIRPODS -->
+      <section class="page" id="p-device">
+        <h1>AirPods</h1>
+        <div class="sub">Information reported by the earbuds.</div>
+        <div class="grid g2">
+          <div class="card">
+            <h3>Identity</h3>
+            <div id="dev-info"></div>
+          </div>
+          <div class="card">
+            <h3>Status</h3>
+            <div id="dev-state"></div>
+          </div>
+        </div>
+        <h2>Internal settings (opcode 0x09)</h2>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody id="dev-ctl"></tbody>
+          </table>
+          <div class="hint" style="margin-top: 12px">
+            Advanced: send a control command. These settings are stored in the
+            AirPods.
+          </div>
+          <div class="row" style="margin-top: 8px">
+            <input
+              type="text"
+              id="ctl-id"
+              placeholder="ID (ex. 0x17)"
+              style="width: 120px"
+            /><input
+              type="text"
+              id="ctl-val"
+              placeholder="values (e.g. 0 0 0 0)"
+              style="width: 180px"
+            /><button class="btn sm" id="ctl-send">Send</button>
+          </div>
+        </div>
+        <h2>Advanced</h2>
+        <div class="card">
+          <div class="hint">
+            Send a raw AAP packet (hexadecimal). For advanced use.
+          </div>
+          <div class="row" style="margin-top: 8px">
+            <input
+              type="text"
+              id="raw-hex"
+              class="mono"
+              placeholder="04 00 04 00 ..."
+              style="flex: 1"
+            /><button class="btn sm" id="raw-send">Send</button
+            ><button class="btn sm d" id="reconnect">Reconnect</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================== JOURNAL -->
+      <section class="page" id="p-log">
+        <h1>Packet log</h1>
+        <div class="sub">
+          AAP packets exchanged (1 in 100 motion packets shown).
+        </div>
+        <div class="card" style="margin-bottom: 16px">
+          <h3>Counts by opcode</h3>
+          <div class="row" id="log-counts"></div>
+        </div>
+        <div class="card log">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Direction</th>
+                <th>Op</th>
+                <th>Length</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =============================== DÉCOUVERTES -->
+      <section class="page" id="p-about">
+        <h1>Discoveries</h1>
+        <div class="sub">
+          Findings from reverse engineering; details in REVERSE_ENGINEERING.md.
+        </div>
+        <div class="card">
+          <ul class="disc">
+            <li>
+              <b>User acceleration</b> [38:44] (gravity removed, ~1000 = 1 g):
+              noise around 0.02 g at rest, suitable for experimental glide mode
+              with a reset at each stop.
+            </li>
+            <li>
+              <b>MTU L2CAP</b> : at 672 bytes (Linux default), AirPods 3 hide
+              their sensors; at <code>2582</code> (as used by iOS) they expose
+              <i>devmotion6, accel, gyro, cma, kadabra</i>.
+            </li>
+            <li>
+              <b>Apple RemoteHID</b> (RTBuddy channel <code>0x800</code>): each
+              sensor is a virtual HID device. The u32 subpacket header contains
+              deviceID (7 bits), length (10 bits), and type (3 bits).
+            </li>
+            <li>
+              <b>HostConnect</b> <code>00 gg 00 00 | 00 02 00 00</code> →
+              AirPods publish sensors (DeviceConnect + plist + HID descriptor).
+            </li>
+            <li>
+              <b>SetReport feature 1 = Report Interval (µs)</b> on devmotion6 →
+              motion stream up to ~200 Hz.
+            </li>
+            <li>
+              Shared 58-byte AirPods 3 / Pro block: quaternion Q15 [20:26], gyro
+              [26:32] (~0.122 °/s per unit), acceleration [38:44], gravity
+              [44:50] (~1000 = 1 g).
+            </li>
+            <li>
+              AirPods Pro 2: protocol <i>SensorDataWX</i> (protobuf,
+              <code>0x100000</code>) — ACTIVITY(14) then DEVMOTION6(16).
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const $ = (s) => document.querySelector(s),
+        $$ = (s) => [...document.querySelectorAll(s)];
+      let T = {},
+        S = {},
+        page = "overview",
+        series = [],
+        q0 = null;
+      const post = (u, b) =>
+        fetch(u, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(b || {}),
+        });
+      function toast(t) {
+        const e = $("#toast");
+        e.textContent = t;
+        e.classList.add("on");
+        clearTimeout(e._t);
+        e._t = setTimeout(() => e.classList.remove("on"), 1600);
+      }
+      const SRC = {
+        head: "Head",
+        case: "Case",
+        hand: "In hand",
+        auto: "Auto",
+      };
+      const pedalTest = $("#pedal-test");
+      const pedalNames = { 0: "Left", 1: "Middle", 2: "Right" };
+      const pedalPressedAt = new Map();
+      const pedalHistory = [];
+      function showPedalEvent(event, held) {
+        event.preventDefault();
+        const name = pedalNames[event.button] || `Button ${event.button}`;
+        const now = performance.now();
+        if (held) {
+          pedalPressedAt.set(event.button, now);
+          pedalTest.setPointerCapture(event.pointerId);
+        }
+        const duration =
+          (now - (pedalPressedAt.get(event.button) || now)) / 1000;
+        const message = held
+          ? `${name} button DOWN — hold the pedal to keep dragging`
+          : `${name} button UP — released after ${duration.toFixed(1)} seconds`;
+        $("#pedal-result").textContent = message;
+        pedalHistory.push({ button: event.button, held, duration });
+        if (pedalHistory.length > 30) pedalHistory.shift();
+        pedalTest.dataset.history = JSON.stringify(pedalHistory);
+        if (!held) pedalPressedAt.delete(event.button);
+      }
+      pedalTest.addEventListener("pointerdown", (event) =>
+        showPedalEvent(event, true),
+      );
+      pedalTest.addEventListener("pointerup", (event) =>
+        showPedalEvent(event, false),
+      );
+      for (const name of ["click", "auxclick", "contextmenu"]) {
+        pedalTest.addEventListener(name, (event) => event.preventDefault());
+      }
+      // ---------- navigation
+      function go(p) {
+        page = p;
+        $$("#nav a").forEach((x) =>
+          x.classList.toggle("on", x.dataset.p === p),
+        );
+        $$(".page").forEach((e) => e.classList.toggle("on", e.id === "p-" + p));
+        if (location.hash !== "#" + p) history.replaceState(null, "", "#" + p);
+        refreshState();
+      }
+      $$("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.p)));
+      window.addEventListener("load", () => {
+        const h = location.hash.slice(1);
+        if (h && document.getElementById("p-" + h)) go(h);
+      });
+      // ---------- commandes
+      $$("[data-cmd]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            post("/api/cmd", { cmd: b.dataset.cmd });
+            toast(b.textContent);
+          }),
+      );
+      $("#ov-toggle").onclick = () => post("/api/cmd", { cmd: "toggle" });
+      function setCfg(obj, msg) {
+        post("/api/config", obj).then(() => msg && toast(msg));
+      }
+      $$(".seg[data-key]").forEach((seg) =>
+        seg.querySelectorAll("button").forEach(
+          (b) =>
+            (b.onclick = () => {
+              setCfg(
+                { [seg.dataset.key]: b.dataset.v },
+                (seg.dataset.key === "mode" ? "Mode " : "Source ") +
+                  b.textContent,
+              );
+              seg
+                .querySelectorAll("button")
+                .forEach((x) => x.classList.toggle("on", x === b));
+            }),
+        ),
+      );
+      // ---------- réglages
+      function getK(cfg, k) {
+        return k.split(".").reduce((o, p) => o && o[p], cfg);
+      }
+      function mkObj(k, v) {
+        const p = k.split(".");
+        return p.length === 1 ? { [k]: v } : { [p[0]]: { [p[1]]: v } };
+      }
+      let editing = null;
+      $$("#p-settings input[data-k], #p-sims input[data-k]").forEach((inp) => {
+        const k = inp.dataset.k;
+        const out = inp.parentElement.querySelector("output");
+        if (inp.type === "range") {
+          inp.oninput = () => {
+            editing = k;
+            out.textContent = fmt(+inp.value, inp.step);
+          };
+          inp.onchange = () => {
+            setCfg(mkObj(k, +inp.value));
+            setTimeout(() => (editing = null), 800);
+          };
+        } else inp.onchange = () => setCfg(mkObj(k, inp.checked), "Saved");
+      });
+      function fmt(v, step) {
+        const d = (step + "").includes(".")
+          ? (step + "").split(".")[1].length
+          : 0;
+        return v.toFixed(Math.min(d, 3));
+      }
+      function fillSettings(cfg) {
+        $$("#p-settings input[data-k], #p-sims input[data-k]").forEach(
+          (inp) => {
+            const k = inp.dataset.k;
+            if (k === editing) return;
+            const v = getK(cfg, k);
+            if (inp.type === "range") {
+              if (v !== undefined) {
+                inp.value = v;
+                inp.parentElement.querySelector("output").textContent = fmt(
+                  +v,
+                  inp.step,
+                );
+              }
+            } else inp.checked = !!v;
+          },
+        );
+      }
+      // ---------- calibration
+      let calSrc = "auto",
+        calFlow = null;
+      $$("#cal-flow button").forEach(
+        (b) =>
+          (b.onclick = () => {
+            calFlow = b.dataset.v;
+            $$("#cal-flow button").forEach((x) =>
+              x.classList.toggle("on", x === b),
+            );
+          }),
+      );
+      $$("#cal-src button").forEach(
+        (b) =>
+          (b.onclick = () => {
+            calSrc = b.dataset.v;
+            $$("#cal-src button").forEach((x) =>
+              x.classList.toggle("on", x === b),
+            );
+          }),
+      );
+      $("#cal-start").onclick = () => {
+        post("/api/calib", {
+          action: "start",
+          source: calSrc,
+          flow: calFlow || T.mode,
+        });
+        toast("Calibration started");
+      };
+      $("#cal-cancel").onclick = () => {
+        post("/api/calib", { action: "cancel" });
+        toast("Calibration canceled");
+      };
+      // ---------- appareil
+      $("#ctl-send").onclick = () => {
+        const id = parseInt($("#ctl-id").value);
+        const vals = $("#ctl-val")
+          .value.trim()
+          .split(/\s+/)
+          .filter(Boolean)
+          .map((x) => parseInt(x));
+        if (isNaN(id)) return toast("Invalid ID");
+        post("/api/control", { ident: id, values: vals });
+        toast("Command sent");
+      };
+      $("#raw-send").onclick = () => {
+        post("/api/raw", { hex: $("#raw-hex").value });
+        toast("Packet sent");
+      };
+      $("#reconnect").onclick = () => {
+        post("/api/reconnect");
+        toast("Reconnecting…");
+      };
+      $("#m-zero").onclick = () => {
+        q0 = quat(T.att);
+      };
+      // ---------- quaternion -> CSS
+      function quat(a) {
+        if (!a) return [1, 0, 0, 0];
+        const x = a[0] / 32768,
+          y = a[1] / 32768,
+          z = a[2] / 32768;
+        const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z));
+        return [w, x, y, z];
+      }
+      function qmul(a, b) {
+        return [
+          a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
+          a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+          a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1],
+          a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0],
+        ];
+      }
+      function qmat(q) {
+        const [w, x, y, z] = q;
+        return [
+          1 - 2 * (y * y + z * z),
+          2 * (x * y + w * z),
+          2 * (x * z - w * y),
+          0,
+          2 * (x * y - w * z),
+          1 - 2 * (x * x + z * z),
+          2 * (y * z + w * x),
+          0,
+          2 * (x * z + w * y),
+          2 * (y * z - w * x),
+          1 - 2 * (x * x + y * y),
+          0,
+          0,
+          0,
+          0,
+          1,
+        ];
+      }
+      // modèle 3D d'un AirPod (head + tige) en boîtes CSS
+      function box(w, h, d, x, y, z, r) {
+        const g = document.createElement("div");
+        g.className = "part";
+        g.style.transform = `translate3d(${x}px,${y}px,${z}px)`;
+        const F = [
+          [w, h, `translateZ(${d / 2}px)`],
+          [w, h, `rotateY(180deg) translateZ(${d / 2}px)`],
+          [d, h, `rotateY(90deg) translateZ(${w / 2}px)`],
+          [d, h, `rotateY(-90deg) translateZ(${w / 2}px)`],
+          [w, d, `rotateX(90deg) translateZ(${h / 2}px)`],
+          [w, d, `rotateX(-90deg) translateZ(${h / 2}px)`],
+        ];
+        F.forEach(([fw, fh, t]) => {
+          const f = document.createElement("div");
+          f.className = "face";
+          f.style.cssText = `width:${fw}px;height:${fh}px;left:${-fw / 2}px;top:${-fh / 2}px;transform:${t};border-radius:${r}px`;
+          g.appendChild(f);
+        });
+        return g;
+      }
+      const pod = $("#pod");
+      pod.appendChild(box(78, 70, 62, 0, -40, 0, 30));
+      pod.appendChild(box(22, 120, 22, 8, 52, 0, 11));
+      // ---------- graphique
+      const cv = $("#chart"),
+        cx = cv.getContext("2d");
+      function drawChart() {
+        const W = cv.clientWidth,
+          H = 220,
+          dpr = devicePixelRatio || 1;
+        if (cv.width !== W * dpr) {
+          cv.width = W * dpr;
+          cv.height = H * dpr;
+        }
+        cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cx.clearRect(0, 0, W, H);
+        const css = getComputedStyle(document.documentElement);
+        let mx = 60;
+        series.forEach((s) =>
+          s.forEach((v) => (mx = Math.max(mx, Math.abs(v)))),
+        );
+        mx = Math.min(Math.ceil(mx / 30) * 30, 600);
+        cx.strokeStyle = css.getPropertyValue("--line");
+        cx.lineWidth = 1;
+        cx.fillStyle = css.getPropertyValue("--text2");
+        cx.font = "11px -apple-system,sans-serif";
+        [-1, -0.5, 0, 0.5, 1].forEach((f) => {
+          const y = H / 2 - f * (H / 2 - 10);
+          cx.beginPath();
+          cx.moveTo(30, y);
+          cx.lineTo(W, y);
+          cx.stroke();
+          cx.fillText(Math.round(f * mx), 0, y + 4);
+        });
+        const cols = ["--accent", "--green", "--orange"];
+        for (let k = 0; k < 3; k++) {
+          cx.strokeStyle = css.getPropertyValue(cols[k]);
+          cx.lineWidth = 2;
+          cx.lineJoin = "round";
+          cx.beginPath();
+          series.forEach((s, i) => {
+            const x = 30 + (i * (W - 30)) / Math.max(series.length - 1, 1),
+              y = H / 2 - (s[k] / mx) * (H / 2 - 10);
+            i ? cx.lineTo(x, y) : cx.moveTo(x, y);
+          });
+          cx.stroke();
+        }
+      }
+      function vec(el, v, scale, unit) {
+        el.innerHTML = ["X", "Y", "Z"]
+          .map((n, i) => {
+            const p = Math.max(-1, Math.min(1, v[i] / scale)) * 50;
+            return `<span>${n}</span><div class="bar"><i style="left:${p < 0 ? 50 + p : 50}%;width:${Math.abs(p)}%"></i></div><span class="mono">${(+v[i]).toFixed(unit)}</span>`;
+          })
+          .join("");
+      }
+      // ---------- rendu télémétrie
+      function ring(level, color) {
+        const c = 2 * Math.PI * 36;
+        return `<svg class="ring" viewBox="0 0 84 84"><circle class="bg" cx="42" cy="42" r="36"/><circle class="fg" cx="42" cy="42" r="36" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - level / 100)}" style="stroke:${color}"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="650" fill="currentColor">${level}%</text></svg>`;
+      }
+      function renderTelemetry() {
+        const t = T;
+        const ok = t.connected && t.live;
+        $("#side-dot").className =
+          "dot " + (ok ? "ok" : t.connected ? "warn" : "");
+        $("#side-status").textContent = ok
+          ? "Live motion data"
+          : t.status || "—";
+        $("#side-rate").textContent = t.connected
+          ? `${t.rate} Hz · ${SRC[t.source] || ""}`
+          : "";
+        if (page === "overview") {
+          $("#ov-state").textContent = t.paused
+            ? "Paused"
+            : t.calib && t.calib.active
+              ? "Calibration"
+              : "Active";
+          $("#ov-state-sub").textContent =
+            `${{ souris: "Mouse mode", pointeur: "Pointer mode", glisse: "Glide mode" }[t.mode]} · source ${SRC[t.source]}${t.scroll ? " · scrolling" : ""}`;
+          $("#ov-toggle").textContent = t.paused ? "Resume" : "Pause";
+          $("#ov-rate").textContent = t.connected ? t.rate : "—";
+          $("#ov-gaps").textContent = t.connected ? t.gaps : "—";
+          $("#ov-gaps").style.color = t.gaps > 3 ? "var(--orange)" : "";
+          $$(".seg[data-key=mode] button").forEach((b) =>
+            b.classList.toggle("on", b.dataset.v === t.mode),
+          );
+          $$(".seg[data-key=source] button").forEach((b) =>
+            b.classList.toggle("on", b.dataset.v === t.source_cfg),
+          );
+          $("#ov-src-hint").textContent =
+            `Detected: ${{ ear: "earbuds worn", case: "earbuds in case", out: "earbud out of ear" }[t.place] || "—"} → source ${SRC[t.source]}`;
+          const bats = (t.battery || []).map((b) => {
+            const col =
+              b.level <= 20
+                ? "var(--red)"
+                : b.state === "charging"
+                  ? "var(--green)"
+                  : "var(--accent)";
+            return `<div class="card bat">${b.state === "disconnected" ? '<div class="ring" style="display:grid;place-items:center;color:var(--text2)">—</div>' : ring(b.level, col)}<b>${b.part}</b><small>${b.state}</small></div>`;
+          });
+          const ear = t.ear
+            ? `<div class="card bat"><div class="ring" style="display:grid;place-items:center;font-size:30px">🎧</div><b>Ear detection</b><small>${t.ear.join(" · ")}</small></div>`
+            : "";
+          $("#ov-bat").innerHTML =
+            bats.join("") + ear ||
+            '<div class="card empty">Waiting for AirPods…</div>';
+        }
+        if (page === "motion") {
+          let q = quat(t.att);
+          if (q0) {
+            const c = [q0[0], -q0[1], -q0[2], -q0[3]];
+            q = qmul(c, q);
+          }
+          pod.style.transform = `scale(1.25) matrix3d(${qmat(q).join(",")})`;
+          vec($("#m-w"), t.w, 200, 1);
+          vec($("#m-g"), t.g, 1, 2);
+          vec($("#m-b"), t.bias, 10, 2);
+          vec($("#m-a"), t.acc || [0, 0, 0], 5, 2);
+          vec($("#m-gv"), (t.glide_v || [0, 0]).concat([0]), 40, 1);
+          $("#m-bok").textContent = t.bias_ok
+            ? "Automatically corrected while still"
+            : "Hold still briefly to estimate gyroscope bias…";
+          const tg = t.target || [0.5, 0.5],
+            cu = t.cur || [0.5, 0.5];
+          $("#scr-t").style.left = tg[0] * 100 + "%";
+          $("#scr-t").style.top = tg[1] * 100 + "%";
+          $("#scr-t").style.display = t.mode === "pointeur" ? "" : "none";
+          if (t.mode === "pointeur") {
+            $("#scr-c").style.left = cu[0] * 100 + "%";
+            $("#scr-c").style.top = cu[1] * 100 + "%";
+          } else {
+            scrPos[0] = Math.min(
+              100,
+              Math.max(0, scrPos[0] + ((t.vel[0] / 1920) * 100) / 30),
+            );
+            scrPos[1] = Math.min(
+              100,
+              Math.max(0, scrPos[1] + ((t.vel[1] / 1200) * 100) / 30),
+            );
+            $("#scr-c").style.left = scrPos[0] + "%";
+            $("#scr-c").style.top = scrPos[1] + "%";
+          }
+          $("#m-vel").textContent = `${t.vel[0]}, ${t.vel[1]} px/s`;
+          series = series.concat(t.series.slice(-3)).slice(-240);
+          drawChart();
+        }
+        if (page === "calib" || t.calib) {
+          renderCalib(t.calib);
+        }
+        if (page === "gestures") {
+          renderGestures(t.gestures, t.speech);
+        }
+      }
+      // ---------- gestes
+      const G_NAMES = {
+        teeth_click: "Teeth click",
+        teeth_double: "Double teeth click",
+        nod: "Nod (yes)",
+        shake: "Shake (no)",
+        tilt_left: "Tilt left",
+        tilt_right: "Tilt right",
+        look_up: "Look up",
+        look_down: "Look down",
+        jaw_clench: "Jaw clench (experimental)",
+        jaw_slide_left: "Jaw left (experimental)",
+        jaw_slide_right: "Jaw right (experimental)",
+      };
+      const G_CMDS = [
+        ["none", "—"],
+        ["left_click", "Left-click"],
+        ["right_click", "Right-click"],
+        ["middle_click", "Middle-click"],
+        ["recenter", "Recenter"],
+        ["toggle", "Pause / resume"],
+        ["scroll", "Scrolling"],
+        ["mode", "Switch mode"],
+      ];
+      const gpost = (b) => post("/api/gestures", b);
+      let gEditing = null,
+        gMapDone = false;
+      $("#g-en").onchange = (e) => {
+        gpost({ action: e.target.checked ? "enable" : "disable" });
+        toast(e.target.checked ? "Gestures enabled" : "Gestures disabled");
+      };
+      $$("#p-gestures [data-g]").forEach((inp) => {
+        const k = inp.dataset.g,
+          out = inp.parentElement.querySelector("output");
+        if (inp.type === "range") {
+          inp.oninput = () => {
+            gEditing = k;
+            out.textContent = fmt(+inp.value, inp.step);
+          };
+          inp.onchange = () => {
+            gpost({ action: "set", values: { [k]: +inp.value } });
+            setTimeout(() => (gEditing = null), 800);
+          };
+        } else
+          inp.onchange = () => {
+            gpost({ action: "set", values: { [k]: inp.checked } });
+            toast("Saved");
+          };
+      });
+      $("#g-rec-start").onclick = () => {
+        gpost({
+          action: "rec_start",
+          name: $("#g-rec-name").value,
+          label: $("#g-rec-label").value,
+        });
+        toast("Recording…");
+      };
+      $("#g-rec-lab").onclick = () => {
+        gpost({ action: "rec_label", label: $("#g-rec-label").value });
+        toast("Label: " + $("#g-rec-label").value);
+      };
+      $("#g-rec-stop").onclick = () => {
+        gpost({ action: "rec_stop" });
+        toast("Recording stopped");
+      };
+      $("#g-cal-start").onclick = () => {
+        gpost({ action: "calib_start", gesture: $("#g-cal-g").value });
+        toast("Calibration: repeat the gesture 10 times");
+      };
+      $("#g-cal-cancel").onclick = () => {
+        gpost({ action: "calib_cancel" });
+        toast("Calibration canceled");
+      };
+      const sp = (b) => post("/api/speech", b);
+      const spDown = (e) => {
+        e.preventDefault();
+        sp({ action: "start", word: $("#sp-word").value });
+        $("#sp-hold").textContent = "Recording…";
+      };
+      const spUp = () => {
+        if ($("#sp-hold").textContent !== "Recording…") return;
+        sp({ action: "stop" });
+        $("#sp-hold").textContent = "Hold to record";
+      };
+      $("#sp-hold").addEventListener("mousedown", spDown);
+      $("#sp-hold").addEventListener("touchstart", spDown);
+      window.addEventListener("mouseup", spUp);
+      window.addEventListener("touchend", spUp);
+      $("#sp-eval").onclick = () => {
+        sp({ action: "evaluate" });
+        toast("Evaluating (500 permutations)…");
+      };
+      $("#sp-clear").onclick = () => {
+        if (confirm("Clear all learned words?")) sp({ action: "clear" });
+      };
+      function fillGestures() {
+        const gc = S.config && S.config.gestures;
+        if (!gc) return;
+        $("#g-en").checked = !!gc.enabled;
+        $$("#p-gestures [data-g]").forEach((inp) => {
+          const k = inp.dataset.g;
+          if (k === gEditing) return;
+          const v = gc[k];
+          if (v === undefined) return;
+          if (inp.type === "range") {
+            inp.value = v;
+            inp.parentElement.querySelector("output").textContent = fmt(
+              +v,
+              inp.step,
+            );
+          } else inp.checked = !!v;
+        });
+        if (!gMapDone && gc.mapping) {
+          gMapDone = true;
+          $("#g-map").innerHTML = Object.keys(G_NAMES)
+            .filter((k) => k !== "teeth_double")
+            .map(
+              (k) =>
+                `<tr><td>${G_NAMES[k]}</td><td><select data-map="${k}">${G_CMDS.map(([v, l]) => `<option value="${v}"${(gc.mapping[k] || "none") === v ? " selected" : ""}>${l}</option>`).join("")}</select></td></tr>`,
+            )
+            .join("");
+          $$("[data-map]").forEach(
+            (sel) =>
+              (sel.onchange = () => {
+                gpost({
+                  action: "mapping",
+                  mapping: { [sel.dataset.map]: sel.value },
+                });
+                toast("Action saved");
+              }),
+          );
+        }
+        const st = S.gesture_stats;
+        if (st) {
+          $("#g-rate").textContent =
+            `${st.rate_hz} Hz (nominal ${st.nominal_hz})`;
+          $("#g-gaps").textContent = `${st.gaps} · max ${st.max_gap_ms} ms`;
+          $("#g-interp").textContent =
+            `${(st.interp_ratio * 100).toFixed(1)} %`;
+          $("#g-dup").textContent =
+            `${(st.dup_ratio * 100).toFixed(1)} %${st.upsampled_suspect ? " · possibly upsampled?" : ""}`;
+        }
+      }
+      const gcv = $("#g-chart"),
+        gcx = gcv.getContext("2d");
+      function drawGestures(g) {
+        const W = gcv.clientWidth,
+          H = 220,
+          dpr = devicePixelRatio || 1;
+        if (gcv.width !== W * dpr) {
+          gcv.width = W * dpr;
+          gcv.height = H * dpr;
+        }
+        gcx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        gcx.clearRect(0, 0, W, H);
+        const css = getComputedStyle(document.documentElement);
+        const tr = g.trace || [],
+          X = (t) => 30 + ((t + 4) / 4) * (W - 30);
+        let mx = 60;
+        tr.forEach((p) => {
+          for (let k = 2; k < 5; k++) mx = Math.max(mx, Math.abs(p[k]));
+          mx = Math.max(mx, p[1] * 20);
+        });
+        mx = Math.min(Math.ceil(mx / 30) * 30, 600);
+        gcx.strokeStyle = css.getPropertyValue("--line");
+        gcx.lineWidth = 1;
+        gcx.fillStyle = css.getPropertyValue("--text2");
+        gcx.font = "11px -apple-system,sans-serif";
+        [-1, -0.5, 0, 0.5, 1].forEach((f) => {
+          const y = H / 2 - f * (H / 2 - 10);
+          gcx.beginPath();
+          gcx.moveTo(30, y);
+          gcx.lineTo(W, y);
+          gcx.stroke();
+          gcx.fillText(Math.round(f * mx), 0, y + 4);
+        });
+        [
+          ["--red", 1, 20],
+          ["--accent", 2, 1],
+          ["--green", 3, 1],
+          ["--orange", 4, 1],
+        ].forEach(([c, k, sc]) => {
+          gcx.strokeStyle = css.getPropertyValue(c);
+          gcx.lineWidth = k === 1 ? 1.5 : 2;
+          gcx.beginPath();
+          tr.forEach((p, i) => {
+            const x = X(p[0]),
+              y = H / 2 - ((p[k] * sc) / mx) * (H / 2 - 10);
+            i ? gcx.lineTo(x, y) : gcx.moveTo(x, y);
+          });
+          gcx.stroke();
+        });
+        (g.events || []).forEach((e) => {
+          const dt = e.t - g.t;
+          if (dt < -4) return;
+          const x = X(dt);
+          gcx.strokeStyle = e.action
+            ? css.getPropertyValue("--green")
+            : css.getPropertyValue("--purple");
+          gcx.lineWidth = 2;
+          gcx.setLineDash([4, 3]);
+          gcx.beginPath();
+          gcx.moveTo(x, 14);
+          gcx.lineTo(x, H);
+          gcx.stroke();
+          gcx.setLineDash([]);
+          gcx.fillStyle = css.getPropertyValue("--text");
+          gcx.fillText(G_NAMES[e.type] || e.type, Math.min(x + 3, W - 90), 12);
+        });
+      }
+      function renderGestures(g, s) {
+        if (!g) {
+          $("#g-events").innerHTML =
+            '<tr><td colspan="3" class="empty">Gesture module unavailable (restart MousePods)</td></tr>';
+          return;
+        }
+        $("#g-armed").textContent =
+          g.armed > 0 ? `open · ${g.armed.toFixed(1)} s` : "closed";
+        $("#g-armed").style.color = g.armed > 0 ? "var(--green)" : "";
+        const f = g.flags || {},
+          fl = [
+            f.walking && "marche",
+            f.chewing && "mastication",
+            f.big_motion && "grand mouvement",
+          ].filter(Boolean);
+        $("#g-flags").textContent = fl.length
+          ? fl.join(" · ")
+          : g.enabled
+            ? "none"
+            : "disabled";
+        $("#g-flags").style.color = fl.length ? "var(--orange)" : "";
+        const ev = (g.events || []).slice().reverse();
+        $("#g-events").innerHTML = ev.length
+          ? ev
+              .map(
+                (e) =>
+                  `<tr><td>${G_NAMES[e.type] || e.type}${e.side ? " (" + e.side + ")" : ""}</td><td class="mono">${Math.round(e.conf * 100)} %</td><td>${e.calib ? "calibration" : e.action === "activation" ? '<span class="pill g">activation</span>' : e.action ? '<span class="pill b">' + esc(e.action) + "</span>" : '<span class="hint">' + (e.blocked || "none") + "</span>"}</td></tr>`,
+              )
+              .join("")
+          : '<tr><td colspan="3" class="empty">Aucun geste</td></tr>';
+        const c = g.calib;
+        $("#g-cal-prog").textContent = c
+          ? `${c.peaks.length} / ${c.reps}`
+          : "—";
+        $("#g-cal-res").textContent = c
+          ? c.done
+            ? `Done: ${Object.entries(c.result)
+                .map(([k, v]) => k + " = " + v)
+                .join(", ")} (ancien ${c.old})`
+            : "Repeat the gesture…"
+          : "";
+        $("#g-rec-info").textContent = g.rec
+          ? `Recording: ${g.rec.rows} rows · label “${g.rec.label} »`
+          : "captures/private/*.csv — rejouer : python gestures.py --replay fichier.csv";
+        $("#g-src").textContent =
+          g.source === "raw"
+            ? "Raw IMU (HID accelerometer + gyro)"
+            : "devmotion6 (repli)";
+        if (g.error) $("#g-flags").textContent = "erreur : " + g.error;
+        drawGestures(g);
+        if (s) {
+          $("#sp-words").textContent =
+            Object.entries(s.words || {})
+              .map(([w, n]) => `${w} (${n})`)
+              .join(", ") || "none";
+          const l = s.last;
+          $("#sp-last").textContent = !l
+            ? "—"
+            : l.error
+              ? l.error
+              : l.trained
+                ? `example added: ${l.trained}`
+                : l.word
+                  ? `« ${l.word} » (dist ${l.dist}, marge ${l.margin})`
+                  : `rejected — ${l.reason}`;
+          const v = s.evaluation;
+          $("#sp-eval-res").textContent = !v
+            ? "—"
+            : v.error
+              ? v.error
+              : `${Math.round(v.loo_accuracy * 100)} % (chance ${Math.round(v.chance * 100)} %) · p = ${v.p_value} · ${v.verdict}`;
+        }
+      }
+      const scrPos = [50, 50];
+      function renderCalib(c) {
+        const steps = $("#cal-steps");
+        if (!c) {
+          steps.innerHTML = "";
+          $("#cal-ring").style.strokeDashoffset = 314.16;
+          return;
+        }
+        $("#cal-instr").textContent = c.text;
+        $("#cal-msg").textContent = c.message || "";
+        const FL = {
+          souris: "Rotation",
+          pointeur: "Pointer + screen corners",
+          glisse: "Table glide",
+        };
+        $("#cal-hint").textContent = c.done
+          ? `Profile “${c.key}” saved and applied.`
+          : `${FL[c.flow]} · source ${SRC[c.source]} — step ${Math.min(c.index + 1, c.total)}/${c.total}`;
+        $("#cal-ring").style.strokeDashoffset = 314.16 * (1 - c.progress);
+        $("#cal-ring").style.stroke = c.done
+          ? "var(--green)"
+          : ["still", "back"].includes(c.step)
+            ? "var(--green)"
+            : "var(--accent)";
+        steps.innerHTML = Array.from(
+          { length: c.total },
+          (_, i) =>
+            `<i class="${i < c.index ? "done" : i === c.index ? "cur" : ""}"></i>`,
+        ).join("");
+      }
+      // ---------- mode anonyme (?anon) : pour les captures d'écran publiques
+      function anonymize(s) {
+        const c = JSON.parse(JSON.stringify(s));
+        if (c.addr) c.addr = "XX:XX:XX:XX:XX:XX";
+        c.info = (c.info || []).map((i) => ({
+          label: i.label,
+          value: /Nom/.test(i.label)
+            ? "AirPods"
+            : /série|Serial/i.test(i.label)
+              ? "••••••••••"
+              : i.value,
+        }));
+        c.log = (c.log || []).filter((l) => l.op === 0x17 || l.op === -1);
+        return c;
+      }
+      // ---------- rendu état (1 Hz)
+      function esc(s) {
+        return String(s).replace(
+          /[&<>]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c],
+        );
+      }
+      const ANON = location.search.includes("anon");
+      if (ANON) document.documentElement.classList.add("shot");
+      function renderState() {
+        const s = ANON ? anonymize(S) : S;
+        $("#side-model").textContent = s.model || "—";
+        const name = (s.info || []).find((i) => i.label === "Name");
+        $("#ov-name").textContent = name ? name.value : s.model || "AirPods";
+        $("#ov-sub").textContent = s.addr
+          ? `${s.model || ""} · ${s.addr}`
+          : "Searching for AirPods…";
+        $("#ov-proto").textContent = s.protocol || "—";
+        $("#ov-prof").innerHTML = s.profile_key
+          ? s.calibrated
+            ? `<span class="pill g">✓ ${esc(s.profile_key)}</span>`
+            : `<span class="pill o">Calibration needed</span>`
+          : "—";
+        if (s.config) fillSettings(s.config);
+        if (page === "calib") {
+          if (!calFlow)
+            $$("#cal-flow button").forEach((x) =>
+              x.classList.toggle("on", x.dataset.v === (T.mode || "souris")),
+            );
+          const f = (a) => (a || []).map((v) => (+v).toFixed(2)).join(", ");
+          $("#cal-prof").innerHTML =
+            Object.entries(s.profiles || {})
+              .map(
+                ([k, p]) =>
+                  `<tr><td><b>${esc(k)}</b></td><td class="mono">${p.right ? `glide · right [${f(p.right)}] · forward [${f(p.fwd)}]` : `lateral axis [${f(p.lat)}] · yaw ${p.yaw_sign} · roll ${p.roll_sign}${p.range ? ` · corners ←${p.range.x_neg}° →${p.range.x_pos}° ↑${p.range.y_pos}° ↓${p.range.y_neg}°` : ""}`}</td></tr>`,
+              )
+              .join("") ||
+            '<tr><td colspan="2" class="empty">No saved profiles</td></tr>';
+        }
+        if (page === "sensors") renderSensors(s);
+        if (page === "device") {
+          $("#dev-info").innerHTML =
+            (s.info || [])
+              .map(
+                (i) =>
+                  `<div class="kv"><span>${esc(i.label)}</span><span class="mono">${esc(i.value)}</span></div>`,
+              )
+              .join("") || '<div class="empty">—</div>';
+          $("#dev-state").innerHTML = [
+            ["Address", s.addr],
+            ["Model", s.model],
+            ["Product ID", "0x" + (s.pid || "")],
+            ["Protocole capteurs", s.protocol],
+            ["Intervalle capteur", (s.interval_us || "—") + " µs"],
+            ["Earbuds", (s.ear || []).join(" · ")],
+            ...(s.battery || []).map((b) => [
+              "Batterie " + b.part.toLowerCase(),
+              b.level + " % · " + b.state,
+            ]),
+            ["MousePods uptime", Math.round((s.uptime || 0) / 60) + " min"],
+          ]
+            .map(
+              ([k, v]) =>
+                `<div class="kv"><span>${k}</span><span>${esc(v ?? "—")}</span></div>`,
+            )
+            .join("");
+          $("#dev-ctl").innerHTML =
+            (s.controls || [])
+              .map(
+                (c) =>
+                  `<tr><td class="mono">0x${c.ident.toString(16).padStart(2, "0")}</td><td>${esc(c.name)}</td><td class="mono">${c.values.map((v) => v.toString(16).padStart(2, "0")).join(" ")}</td></tr>`,
+              )
+              .join("") || '<tr><td colspan="3" class="empty">—</td></tr>';
+        }
+        if (page === "log") {
+          $("#log-counts").innerHTML = Object.entries(s.counts || {})
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => `<span class="pill">${k} · ${v}</span>`)
+            .join("");
+          $("#log-body").innerHTML = (s.log || [])
+            .slice()
+            .reverse()
+            .map(
+              (l) =>
+                `<tr><td class="mono">${new Date(l.t * 1000).toLocaleTimeString()}</td><td class="${l.dir}">${l.dir === "tx" ? "→ AirPods" : "← AirPods"}</td><td class="mono">${l.op >= 0 ? "0x" + l.op.toString(16).padStart(2, "0") : "—"}</td><td>${l.len}</td><td class="mono hx">${esc(l.hex)}</td></tr>`,
+            )
+            .join("");
+        }
+      }
+      function renderSensors(s) {
+        const list = $("#sens-list");
+        if (!(s.services || []).length) {
+          list.innerHTML =
+            '<div class="card empty">Aucun service RemoteHID (AirPods Pro : protocole SensorDataWX, sans services HID).</div>';
+          return;
+        }
+        const open =
+          document.activeElement && list.contains(document.activeElement);
+        if (open) return;
+        list.innerHTML = s.services
+          .map(
+            (
+              sv,
+            ) => `<div class="card"><h3>${esc(sv.name)} <span class="pill b">id ${sv.dev}</span>${sv.motion ? '<span class="pill g">used for mouse control</span>' : ""}</h3>
+    <div class="hint" style="margin-bottom:10px">${esc(sv.desc)}${sv.max_report ? ` · rapport max ${sv.max_report} o` : ""}</div>
+    <table><thead><tr><th>Rapport</th><th>ID</th><th>Bits</th><th>Usages</th></tr></thead><tbody>${sv.reports.map((r) => `<tr><td>${r.kind}</td><td>${r.id}</td><td>${r.bits}</td><td>${esc(r.usages.join(", "))}</td></tr>`).join("")}</tbody></table>
+    <div class="kv"><span>Reports received</span><span>${sv.count}${sv.last_age != null ? ` · last received ${sv.last_age} s` : ""}</span></div>
+    ${sv.last_hex ? `<div class="mono hint" style="word-break:break-all;margin:6px 0 10px">${esc(sv.last_hex)}</div>` : ""}
+    <div class="row"><select id="iv-${sv.dev}"><option value="5000">200 Hz</option><option value="10000" selected>100 Hz</option><option value="20000">50 Hz</option><option value="40000">25 Hz</option><option value="100000">10 Hz</option></select>
+      <button class="btn sm p" onclick="sensor(${sv.dev},'start')">Start</button><button class="btn sm" onclick="sensor(${sv.dev},'stop')">Stop</button>
+      ${sv.reports
+        .filter((r) => r.kind === "feature")
+        .map(
+          (r) =>
+            `<button class="btn sm" onclick="sensor(${sv.dev},'get',${r.id})">Lire F${r.id}</button>`,
+        )
+        .join("")}</div></div>`,
+          )
+          .join("");
+        $("#sens-replies").innerHTML =
+          (s.replies || [])
+            .slice()
+            .reverse()
+            .map(
+              (r) =>
+                `<tr><td>${r.age} s</td><td>${r.kind}</td><td>${r.dev}</td><td class="mono">${esc(r.hex)}</td></tr>`,
+            )
+            .join("") || '<tr><td colspan="4" class="empty">—</td></tr>';
+      }
+      window.sensor = (dev, action, report) => {
+        const iv = $("#iv-" + dev);
+        post("/api/sensor", {
+          dev,
+          action,
+          interval: iv ? +iv.value : 10000,
+          report: report || 1,
+        });
+        toast(
+          action === "get"
+            ? "Read requested"
+            : action === "start"
+              ? "Stream started"
+              : "Stream stopped",
+        );
+        setTimeout(refreshState, 400);
+      };
+
+      // ---------- Labo
+      const LB_DESC = {
+        dents:
+          "Front teeth, left molars, right molars at soft / medium / hard strength, 8 clicks each (about 4 minutes). Compare strength, left/right separation, and a suggested threshold.",
+        mouvements:
+          "Nod, shake, tilt left/right, and look up/down, 5 times each (about 2 minutes). Measure detection with current thresholds.",
+        mots: "EXPERIMENTAL: silently mouth 5 words 10 times each (about 2 minutes 40 seconds). Train silent_speech (DTW) and compare accuracy with chance (500 permutations). p > 0.05 means no evidence of reliable word detection.",
+      };
+      let lbProto = "dents",
+        lbPts = [],
+        lbT = null,
+        lbData = null,
+        lbTimer = null,
+        lbLastRes = null;
+      const GRP = {
+          inc: "Front teeth",
+          mol_g: "Left molars",
+          mol_d: "Right molars",
+        },
+        LVL = { doux: "Doux", moyen: "Moyen", fort: "Fort" };
+      $$("#lb-proto button").forEach(
+        (b) =>
+          (b.onclick = () => {
+            lbProto = b.dataset.v;
+            $$("#lb-proto button").forEach((x) =>
+              x.classList.toggle("on", x === b),
+            );
+            $("#lb-words-row").style.display =
+              lbProto === "mots" ? "flex" : "none";
+            $("#lb-proto-desc").textContent = LB_DESC[lbProto];
+          }),
+      );
+      $("#lb-proto-desc").textContent = LB_DESC.dents;
+      $("#lb-start").onclick = () => {
+        const reps = +$("#lb-reps").value || undefined;
+        post("/api/labo", {
+          action: "start",
+          protocol: lbProto,
+          reps,
+          words: $("#lb-words").value,
+        })
+          .then((r) => r.json())
+          .then((j) => {
+            if (j.error) toast(j.error);
+            else toast("Session started");
+          });
+      };
+      $("#cue-cancel").onclick = () =>
+        post("/api/labo", { action: "cancel" }).then(() =>
+          toast("Session canceled"),
+        );
+      function lbPoll() {
+        fetch("/api/labo" + (lbT !== null ? "?since=" + lbT : ""))
+          .then((r) => r.json())
+          .then((d) => {
+            lbData = d;
+            const L = d.live;
+            if (L) {
+              if (lbT !== null && L.t < lbT - 1) lbPts = [];
+              L.pts.forEach((p) => lbPts.push(p));
+              if (L.pts.length) lbT = L.pts[L.pts.length - 1][0];
+              const t0 = L.t - 5;
+              while (lbPts.length && lbPts[0][0] < t0) lbPts.shift();
+            }
+            renderLabo(d);
+          })
+          .catch(() => {});
+      }
+      function lbStartPoll() {
+        if (!lbTimer)
+          lbTimer = setInterval(() => {
+            const s = lbData && lbData.session;
+            if (page === "labo" || (s && !s.done)) lbPoll();
+          }, 100);
+      }
+      lbStartPoll();
+      const lcv = $("#lb-chart"),
+        lcx = lcv.getContext("2d");
+      function drawLabo(L, real) {
+        const W = lcv.clientWidth,
+          H = 240,
+          dpr = devicePixelRatio || 1;
+        if (lcv.width !== W * dpr) {
+          lcv.width = W * dpr;
+          lcv.height = H * dpr;
+        }
+        lcx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        lcx.clearRect(0, 0, W, H);
+        const css = getComputedStyle(document.documentElement),
+          cv = (n) => css.getPropertyValue(n);
+        const tN = L ? L.t : 0,
+          X = (t) => 36 + ((t - tN + 5) / 5) * (W - 76);
+        let ma = 0.5,
+          mg = 50;
+        lbPts.forEach((p) => {
+          ma = Math.max(ma, p[1]);
+          mg = Math.max(mg, p[2]);
+        });
+        ma = Math.min(Math.ceil(ma * 2) / 2, 8);
+        mg = Math.ceil(mg / 50) * 50;
+        const Y = (v) => H - 14 - (v / ma) * (H - 30),
+          Yg = (v) => H - 14 - (v / mg) * (H - 30);
+        lcx.strokeStyle = cv("--line");
+        lcx.fillStyle = cv("--text2");
+        lcx.font = "11px -apple-system,sans-serif";
+        lcx.lineWidth = 1;
+        [0, 0.25, 0.5, 0.75, 1].forEach((f) => {
+          const y = H - 14 - f * (H - 30);
+          lcx.beginPath();
+          lcx.moveTo(36, y);
+          lcx.lineTo(W - 40, y);
+          lcx.stroke();
+          lcx.fillText((f * ma).toFixed(1), 2, y + 4);
+          lcx.fillText(Math.round(f * mg), W - 36, y + 4);
+        });
+        [
+          [L && L.thr, "--purple"],
+          [real, "--orange"],
+        ].forEach(([v, c]) => {
+          if (!v || v > ma) return;
+          lcx.strokeStyle = cv(c);
+          lcx.setLineDash([5, 4]);
+          lcx.beginPath();
+          lcx.moveTo(36, Y(v));
+          lcx.lineTo(W - 40, Y(v));
+          lcx.stroke();
+          lcx.setLineDash([]);
+        });
+        [
+          ["--accent", 2, Yg],
+          ["--red", 1, Y],
+        ].forEach(([c, k, f]) => {
+          lcx.strokeStyle = cv(c);
+          lcx.lineWidth = 1.3;
+          lcx.beginPath();
+          lbPts.forEach((p, i) => {
+            const x = X(p[0]),
+              y = f(p[k]);
+            i ? lcx.lineTo(x, y) : lcx.moveTo(x, y);
+          });
+          lcx.stroke();
+        });
+        if (!L) return;
+        (L.spikes || []).forEach((sp) => {
+          if (sp.t < tN - 5) return;
+          lcx.fillStyle =
+            sp.peak >= (real || 9) ? cv("--green") : cv("--text2");
+          lcx.beginPath();
+          lcx.arc(X(sp.t), Y(Math.min(sp.peak, ma)), 4, 0, 7);
+          lcx.fill();
+        });
+        (L.events || []).forEach((e) => {
+          if (e.t < tN - 5) return;
+          const x = X(e.t);
+          lcx.strokeStyle = cv("--purple");
+          lcx.lineWidth = 2;
+          lcx.setLineDash([4, 3]);
+          lcx.beginPath();
+          lcx.moveTo(x, 16);
+          lcx.lineTo(x, H - 14);
+          lcx.stroke();
+          lcx.setLineDash([]);
+          lcx.fillStyle = cv("--text");
+          lcx.fillText(
+            (G_NAMES[e.type] || e.type) +
+              (e.peak && e.type.startsWith("teeth")
+                ? " " + e.peak.toFixed(2)
+                : ""),
+            Math.min(x + 3, W - 120),
+            12,
+          );
+        });
+      }
+      function pct(x) {
+        return x == null ? "—" : Math.round(x * 100) + " %";
+      }
+      function pv(x) {
+        return x == null
+          ? "—"
+          : x < 0.001
+            ? "< 0,001"
+            : String(x).replace(".", ",");
+      }
+      function renderLabo(d) {
+        const L = d.live,
+          c = d.config || {},
+          real = c.click_thresh;
+        $("#lb-src").textContent =
+          !L || !L.src
+            ? "no samples"
+            : L.src === "raw"
+              ? "Raw IMU ~200 Hz"
+              : "devmotion6 (50 Hz, repli)";
+        $("#lb-noise").textContent =
+          L && L.noise != null ? L.noise.toFixed(3) + " m/s²" : "—";
+        $("#lb-thr").textContent =
+          L && L.thr != null ? L.thr.toFixed(3) + " m/s²" : "—";
+        $("#lb-real").textContent =
+          real != null
+            ? real +
+              " m/s²" +
+              (c.click_adaptive
+                ? ` · adaptatif (≥ ${c.click_noise_k} × bruit)`
+                : "")
+            : "—";
+        $("#lb-warn").textContent = !c.enabled
+          ? "Enable gestures on the Gestures page to receive raw IMU data."
+          : L && L.src === "dm6"
+            ? "No raw IMU data: only 50 Hz, so teeth-click measurements are less accurate."
+            : "";
+        if (page === "labo") {
+          drawLabo(L, real);
+          const sp = ((L && L.spikes) || []).slice(-8).reverse();
+          $("#lb-spikes").innerHTML = sp.length
+            ? sp
+                .map(
+                  (x) =>
+                    `<tr><td class="mono">${(L.t - x.t).toFixed(1)} s</td><td class="mono"><b>${x.peak.toFixed(2)}</b> m/s²</td><td class="mono">${x.dur_ms} ms</td><td class="mono">${x.axis} (${x.vec.map((v) => v.toFixed(2)).join(", ")})</td><td class="mono">${x.gyro_mean} / ${x.gyro_max} °/s</td><td class="mono">${x.thr}</td><td>${x.peak >= real ? '<span class="pill g">au-dessus</span>' : '<span class="pill o">sous le seuil</span>'}</td></tr>`,
+                )
+                .join("")
+            : '<tr><td colspan="7" class="empty">Aucune impulsion</td></tr>';
+        }
+        const s = d.session,
+          cue = $("#lb-cue");
+        if (s && !s.done && s.step) {
+          const st = s.step;
+          cue.classList.add("on");
+          cue.classList.toggle(
+            "go",
+            st.kind === "click" || st.kind === "move" || st.kind === "word",
+          );
+          cue.classList.toggle("rest", st.kind === "rest");
+          $("#cue-t").textContent = st.title;
+          $("#cue-s").textContent = st.sub;
+          $("#cue-cd").textContent = Math.max(st.left, 0).toFixed(1);
+          $("#cue-pb").style.width =
+            Math.min(100, (s.elapsed / s.total) * 100) + "%";
+          $("#cue-prog").textContent =
+            `step ${st.i + 1} / ${st.n} · ${Math.round(s.elapsed)} / ${Math.round(s.total)} s`;
+          $("#cue-n").textContent =
+            st.kind === "click"
+              ? s.live_count
+                ? `impulse detected ✓ (${s.live_count})`
+                : "waiting for a teeth click…"
+              : "";
+          $("#cue-next").textContent = st.next ? "ensuite : " + st.next : "";
+        } else cue.classList.remove("on");
+        $("#lb-sess-info").textContent = s
+          ? s.done
+            ? (s.cancelled ? "session canceled" : "session complete") +
+              " · " +
+              (s.path || "").split("/").slice(-2).join("/")
+            : "in progress…"
+          : "";
+        if (s && s.result) {
+          const key = JSON.stringify(s.result);
+          if (key !== lbLastRes) {
+            lbLastRes = key;
+            $("#lb-res").innerHTML = labResult(s.result, real);
+          }
+        }
+      }
+      function labResult(r, real) {
+        let h = `<div class="hint" style="margin-bottom:10px">Recording: <code>${esc((r.path || "").split("/").slice(-3).join("/"))}</code>${r.cancelled ? " (partial, session canceled)" : ""} · resting noise p90 ${r.noise.p90 ?? "—"} / p99 ${r.noise.p99 ?? "—"} m/s², ${r.noise.rest_spikes} resting impulse(s)</div>`;
+        if (r.protocol === "dents") {
+          const f = r.force;
+          h += `<div class="kv"><span>Instructions with a detected impulse</span><span>${r.captured.with_impulse} / ${r.captured.cues}</span></div>`;
+          if (f) {
+            h +=
+              `<table style="margin-top:8px"><thead><tr><th>Dents</th>${Object.values(
+                LVL,
+              )
+                .map((l) => `<th>${l} : n · median [min–max] m/s²</th>`)
+                .join("")}</tr></thead><tbody>` +
+              Object.keys(GRP)
+                .map(
+                  (g) =>
+                    `<tr><td>${GRP[g]}</td>${Object.keys(LVL)
+                      .map((l) => {
+                        const x = f.by_group_level[g + ":" + l];
+                        return `<td class="mono">${x ? `${x.n} · <b>${x.median}</b> [${x.min}–${x.max}]` : "—"}</td>`;
+                      })
+                      .join("")}</tr>`,
+                )
+                .join("") +
+              `<tr><td><b>Tous</b></td>${Object.keys(LVL)
+                .map((l) => {
+                  const x = f.by_level[l];
+                  return `<td class="mono">${x ? `${x.n} · <b>${x.median}</b> [${x.min}–${x.max}]` : "—"}</td>`;
+                })
+                .join("")}</tr></tbody></table>`;
+          }
+          const sp = r.separability;
+          if (sp) {
+            const line = (n, x) =>
+              `<div class="kv"><span>${n}</span><span>${x.error ? x.error : `${pct(x.accuracy)} (chance ${pct(x.chance)}, n = ${x.n}) · p = ${pv(x.p_value)} · <b>${x.verdict}</b>`}</span></div>`;
+            h +=
+              `<h3 style="margin-top:16px">Separation (peak direction, nearest centroid, leave-one-out)</h3>` +
+              line("Left vs right molars", sp.mol_g_vs_mol_d) +
+              line("Front teeth vs molaires", sp.inc_vs_mol) +
+              `<div class="hint">Each click is classified without using it for training. Chance means always predicting the most common class; p is the binomial probability of matching this result by chance.</div>`;
+          }
+          const p = r.proposal;
+          h += `<h3 style="margin-top:16px">Strength threshold</h3>`;
+          if (p && p.click_thresh) {
+            h += `<div class="kv"><span>Soft clicks: p10</span><span class="mono">${p.soft_p10} m/s² (n = ${p.n_soft})</span></div><div class="kv"><span>Noise floor</span><span class="mono">${p.floor} m/s²</span></div>
+      <div class="kv"><span>Suggested threshold</span><span><b class="mono">${p.click_thresh} m/s²</b> (actuel ${real}) — ${esc(p.reason)}</span></div>
+      <div class="kv"><span>Detected at this threshold</span><span>${Object.entries(
+        r.at_proposal || {},
+      )
+        .map(([l, v]) => `${LVL[l]} ${pct(v)}`)
+        .join(" · ")}</span></div>
+      <div class="row" style="margin-top:10px"><button class="btn p" onclick="lbApply(${p.click_thresh})">Appliquer click_thresh = ${p.click_thresh}</button><span class="hint">the adaptive threshold still rises while speaking or chewing</span></div>`;
+          } else h += `<div class="hint">${esc(p ? p.reason : "—")}</div>`;
+        } else if (r.protocol === "mouvements") {
+          const rt = r.rates || {};
+          h +=
+            `<table><thead><tr><th>Gesture</th><th>Detected</th><th>Other gestures during the instruction</th></tr></thead><tbody>` +
+            Object.entries(rt)
+              .map(
+                ([ph, x]) =>
+                  `<tr><td>${ph}</td><td class="mono"><b>${x.hits} / ${x.cues}</b> (${pct(x.rate)})</td><td class="mono">${
+                    Object.entries(x.other)
+                      .map(([k, v]) => (G_NAMES[k] || k) + " ×" + v)
+                      .join(", ") || "—"
+                  }</td></tr>`,
+              )
+              .join("") +
+            `</tbody></table>`;
+        } else if (r.protocol === "mots") {
+          const v = r.speech || {};
+          h += `<div class="exp" style="margin-bottom:8px">EXPERIMENTAL — silent speech</div><div class="kv"><span>Examples</span><span>${
+            Object.entries(r.words || {})
+              .map(([w, n]) => w + " ×" + n)
+              .join(", ") || "—"
+          }</span></div>`;
+          h += v.status
+            ? `<div class="hint">Evaluating (DTW + 500 permutations; this may take tens of seconds)…</div>`
+            : v.error
+              ? `<div class="hint">${esc(v.error)}</div>`
+              : `<div class="kv"><span>Leave-one-out accuracy</span><span><b>${pct(v.loo_accuracy)}</b> (chance ${pct(v.chance)}) · p = ${pv(v.p_value)} · <b>${esc(v.verdict)}</b></span></div><div class="kv"><span>Examples too short</span><span>${v.too_short || 0}</span></div>`;
+        }
+        return h;
+      }
+      window.lbApply = (v) =>
+        post("/api/gestures", {
+          action: "set",
+          values: { click_thresh: v },
+        }).then(() => toast("click_thresh = " + v));
+      // ---------- Simulateurs : OpenTrack + manette virtuelle (passent par /api/opentrack)
+      $("#ot-en").onchange = () =>
+        post("/api/opentrack", { enabled: $("#ot-en").checked }).then(() =>
+          toast(
+            $("#ot-en").checked ? "OpenTrack enabled" : "OpenTrack disabled",
+          ),
+        );
+      $("#js-en").onchange = () =>
+        post("/api/opentrack", {
+          joystick: { enabled: $("#js-en").checked },
+        }).then(() =>
+          toast(
+            $("#js-en").checked
+              ? "Virtual joystick enabled"
+              : "Virtual joystick disabled",
+          ),
+        );
+      $("#ot-host").onchange = $("#ot-port").onchange = () => {};
+      $("#ot-apply").onclick = () =>
+        post("/api/opentrack", {
+          host: $("#ot-host").value,
+          port: +$("#ot-port").value,
+        }).then(() => toast("Destination saved"));
+      $("#sim-recenter").onclick = () =>
+        post("/api/opentrack", { action: "recenter" }).then(() =>
+          toast("Recentered"),
+        );
+      $$("#ot-source button").forEach(
+        (b) =>
+          (b.onclick = () =>
+            post("/api/opentrack", { source: b.dataset.v }).then(() => {
+              toast("Source : " + b.textContent);
+              $$("#ot-source button").forEach((x) =>
+                x.classList.toggle("on", x === b),
+              );
+            })),
+      );
+      const simCv = $("#sim-cv"),
+        simCx = simCv.getContext("2d");
+      function drawSim(p) {
+        const W = simCv.clientWidth,
+          H = 190,
+          dpr = devicePixelRatio || 1;
+        if (simCv.width !== W * dpr) {
+          simCv.width = W * dpr;
+          simCv.height = H * dpr;
+        }
+        simCx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        simCx.clearRect(0, 0, W, H);
+        const css = getComputedStyle(document.documentElement),
+          cv = (n) => css.getPropertyValue(n);
+        const rad = (d) => (d * Math.PI) / 180,
+          R = 62,
+          c1 = [W / 4, H / 2 + 6],
+          c2 = [(3 * W) / 4, H / 2 + 6];
+        simCx.font = "11px -apple-system,sans-serif";
+        simCx.fillStyle = cv("--text2");
+        simCx.fillText("top (yaw)", c1[0] - 36, 14);
+        simCx.fillText("side (pitch)", c2[0] - 38, 14);
+        [c1, c2].forEach((c) => {
+          simCx.strokeStyle = cv("--line");
+          simCx.lineWidth = 1;
+          simCx.beginPath();
+          simCx.arc(c[0], c[1], R, 0, 7);
+          simCx.stroke();
+        });
+        // dessus : head vue d'en haut, nez vers le haut de l'écran, lacet + = vers la droite
+        const y = rad(p[3]);
+        simCx.save();
+        simCx.translate(c1[0], c1[1]);
+        simCx.rotate(y);
+        simCx.fillStyle = cv("--card2");
+        simCx.strokeStyle = cv("--text2");
+        simCx.beginPath();
+        simCx.ellipse(0, 0, 24, 30, 0, 0, 7);
+        simCx.fill();
+        simCx.stroke();
+        simCx.strokeStyle = cv("--accent");
+        simCx.lineWidth = 3;
+        simCx.beginPath();
+        simCx.moveTo(0, -30);
+        simCx.lineTo(0, -R + 4);
+        simCx.stroke();
+        simCx.restore();
+        // côté : regard vers la droite de l'écran, tangage + = vers le haut, roulis en arc
+        const t = rad(p[4]);
+        simCx.save();
+        simCx.translate(c2[0], c2[1]);
+        simCx.rotate(-t);
+        simCx.fillStyle = cv("--card2");
+        simCx.strokeStyle = cv("--text2");
+        simCx.lineWidth = 1;
+        simCx.beginPath();
+        simCx.ellipse(0, 0, 28, 24, 0, 0, 7);
+        simCx.fill();
+        simCx.stroke();
+        simCx.strokeStyle = cv("--green");
+        simCx.lineWidth = 3;
+        simCx.beginPath();
+        simCx.moveTo(28, 0);
+        simCx.lineTo(R - 4, 0);
+        simCx.stroke();
+        simCx.restore();
+        simCx.strokeStyle = cv("--orange");
+        simCx.lineWidth = 3;
+        simCx.beginPath();
+        const r0 = -Math.PI / 2;
+        simCx.arc(c2[0], c2[1], R + 6, r0, r0 + rad(p[5]), p[5] < 0);
+        simCx.stroke();
+      }
+      function refreshOT() {
+        if (page !== "sims") return;
+        fetch("/api/opentrack")
+          .then((r) => r.json())
+          .then((o) => {
+            const c = o.config || {},
+              j = o.joystick || {};
+            if (document.activeElement !== $("#ot-host"))
+              $("#ot-host").value = c.host || "";
+            if (document.activeElement !== $("#ot-port"))
+              $("#ot-port").value = c.port || "";
+            const outs = o.outputs || [];
+            $("#ot-en").checked = outs.includes("udp");
+            $("#js-en").checked =
+              outs.includes("joystick") ||
+              !!(o.joystick_config && o.joystick_config.enabled && j.error);
+            $$("#ot-source button").forEach((b) =>
+              b.classList.toggle(
+                "on",
+                b.dataset.v === (c.source || "quaternion"),
+              ),
+            );
+            const p = o.pose || [0, 0, 0, 0, 0, 0];
+            $("#sim-angles").innerHTML = [
+              ["Yaw", p[3], 90],
+              ["Pitch", p[4], 60],
+              ["Roulis", p[5], 60],
+            ]
+              .map(([n, v, s]) => {
+                const w = Math.max(-1, Math.min(1, v / s)) * 50;
+                return `<span>${n}</span><div class="bar"><i style="left:${w < 0 ? 50 + w : 50}%;width:${Math.abs(w)}%"></i></div><span class="mono">${v >= 0 ? "+" : ""}${v.toFixed(1)}°</span>`;
+              })
+              .join("");
+            $("#sim-src").textContent = !o.active
+              ? "—"
+              : o.source_used === "quaternion"
+                ? "AirPods quaternion"
+                : o.source_used === "gyro"
+                  ? "gyroscope integration" +
+                    (c.source === "quaternion"
+                      ? " (quaternion not received yet)"
+                      : "")
+                  : "waiting for samples";
+            $("#sim-outs").textContent = outs.length
+              ? outs
+                  .map((x) =>
+                    x === "udp" ? "OpenTrack (UDP)" : "manette virtuelle",
+                  )
+                  .join(" + ")
+              : "none";
+            $("#ot-status").textContent = outs.includes("udp")
+              ? `→ ${o.target}${o.forced ? " (session --opentrack)" : ""} · ${o.packets} paquets${o.errors ? " · erreurs : " + o.errors : ""}`
+              : "Inactive";
+            $("#js-status").textContent = j.error
+              ? "Erreur : " + j.error
+              : j.active
+                ? `« ${j.name} » · ${j.writes} updates${o.joystick_forced ? " (session --sim-joystick)" : ""}`
+                : "Inactive";
+            if (o.data_age_s != null && o.data_age_s > 2 && o.active)
+              $("#sim-src").textContent +=
+                " · no data for " + o.data_age_s.toFixed(0) + " s";
+            drawSim(p);
+          })
+          .catch(() => {});
+      }
+      setInterval(refreshOT, 100);
+      // ---------- Garmin (passe par /api/garmin ; module optionnel garmin-ble)
+      let gmEdit = null;
+      const gmPost = (b) =>
+        post("/api/garmin", b)
+          .then((r) => r.json())
+          .then((j) => {
+            if (j.error) toast(j.error);
+            setTimeout(gmPoll, 150);
+            return j;
+          })
+          .catch(() => ({}));
+      $("#gm-connect").onclick = () =>
+        gmPost({ action: "connect", address: $("#gm-addr").value.trim() }).then(
+          (j) => j.ok && toast("Connecting to watch…"),
+        );
+      $("#gm-disconnect").onclick = () =>
+        gmPost({ action: "disconnect" }).then(
+          (j) => j.ok && toast("Disconnected"),
+        );
+      $("#gm-recenter").onclick = () =>
+        gmPost({ action: "recenter" }).then(
+          (j) => j.ok && toast("Rest your hand and hold still for 1 second"),
+        );
+      $("#gm-recal").onclick = () =>
+        gmPost({ action: "recalibrate" }).then(
+          (j) => j.ok && toast("Full calibration (5 poses)"),
+        );
+      $("#gm-pause").onclick = () =>
+        gmPost({ action: "pause" }).then(
+          (j) => j.ok && toast(j.enabled ? "Mouse enabled" : "Mouse paused"),
+        );
+      $("#gm-paired").onclick = () =>
+        fetch("/api/garmin?paired=1")
+          .then((r) => r.json())
+          .then((d) => {
+            const L = d.paired || [];
+            $("#gm-paired-list").innerHTML = L.length
+              ? L.map(
+                  (p) =>
+                    `<button class="btn sm${p.garmin ? " p" : ""}" data-a="${esc(p.address)}">${esc(p.name || p.address)}</button>`,
+                ).join("")
+              : '<span class="hint">No paired devices found</span>';
+            $$("#gm-paired-list button").forEach(
+              (b) =>
+                (b.onclick = () => {
+                  $("#gm-addr").value = b.dataset.a;
+                  toast("Address selected");
+                }),
+            );
+          })
+          .catch(() => {});
+      $$("#p-garmin [data-gm]").forEach((inp) => {
+        const k = inp.dataset.gm,
+          out = inp.parentElement.querySelector("output");
+        if (inp.type === "range") {
+          inp.oninput = () => {
+            gmEdit = k;
+            out.textContent = fmt(+inp.value, inp.step);
+          };
+          inp.onchange = () => {
+            gmPost({ action: "set", values: { [k]: +inp.value } });
+            setTimeout(() => (gmEdit = null), 800);
+          };
+        } else
+          inp.onchange = () =>
+            gmPost({ action: "set", values: { [k]: inp.checked } }).then(
+              (j) => j.ok && toast("Saved"),
+            );
+      });
+      $$("#gm-mode button").forEach(
+        (b) =>
+          (b.onclick = () =>
+            gmPost({ action: "set", values: { mode: b.dataset.v } }).then(
+              (j) => j.ok && toast("Mode " + b.textContent),
+            )),
+      );
+      const gmCv = $("#gm-canvas"),
+        gmCx = gmCv.getContext("2d");
+      function drawGarmin(a, c) {
+        const S = 260,
+          dpr = devicePixelRatio || 1;
+        if (gmCv.width !== S * dpr) {
+          gmCv.width = S * dpr;
+          gmCv.height = S * dpr;
+        }
+        gmCx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        gmCx.clearRect(0, 0, S, S);
+        const css = getComputedStyle(document.documentElement),
+          cv = (n) => css.getPropertyValue(n),
+          m = S / 2;
+        gmCx.strokeStyle = cv("--line");
+        gmCx.lineWidth = 1;
+        gmCx.beginPath();
+        gmCx.moveTo(m, 0);
+        gmCx.lineTo(m, S);
+        gmCx.moveTo(0, m);
+        gmCx.lineTo(S, m);
+        gmCx.stroke();
+        const dot = (x, y, r, col) => {
+          gmCx.fillStyle = col;
+          gmCx.beginPath();
+          gmCx.arc(x, y, r, 0, 7);
+          gmCx.fill();
+        };
+        if (!a || !a.running) return;
+        if (a.calibrating) {
+          const k = a.calib,
+            p = k.tilt_deg;
+          gmCx.strokeStyle = cv("--green");
+          gmCx.lineWidth = 6;
+          gmCx.lineCap = "round";
+          if (k.progress > 0) {
+            gmCx.beginPath();
+            gmCx.arc(
+              m,
+              m,
+              40,
+              -Math.PI / 2,
+              -Math.PI / 2 + 2 * Math.PI * k.progress,
+            );
+            gmCx.stroke();
+          }
+          dot(
+            m + Math.max(-1.2, Math.min(1.2, p[0] / 40)) * m,
+            m - Math.max(-1.2, Math.min(1.2, p[1] / 40)) * m,
+            9,
+            cv("--orange"),
+          );
+          return;
+        }
+        const dz = (c.deadzone || 0) * (m - 6);
+        gmCx.strokeStyle = cv("--text2");
+        gmCx.lineWidth = 1;
+        gmCx.setLineDash([3, 3]);
+        gmCx.strokeRect(m - dz, m - dz, 2 * dz, 2 * dz);
+        gmCx.setLineDash([]);
+        gmCx.strokeStyle = cv("--line");
+        gmCx.strokeRect(6, 6, S - 12, S - 12);
+        const n = a.norm || [0, 0],
+          cl = (v) => Math.max(-1.2, Math.min(1.2, v)),
+          off = a.paused || !a.enabled;
+        dot(
+          m + cl(n[0]) * (m - 6),
+          m - cl(n[1]) * (m - 6),
+          10,
+          off ? cv("--text2") : a.frozen ? cv("--red") : cv("--green"),
+        );
+      }
+      function gmPoll() {
+        if (page !== "garmin") return;
+        fetch("/api/garmin")
+          .then((r) => r.json())
+          .then(renderGarmin)
+          .catch(() => {});
+      }
+      setInterval(gmPoll, 100);
+      function renderGarmin(d) {
+        const miss = !d.available;
+        $("#gm-missing").style.display = miss ? "block" : "none";
+        $("#gm-body").style.display = miss ? "none" : "block";
+        if (miss) {
+          $("#gm-missing-why").textContent = d.error
+            ? d.error
+            : "manquant : " + (d.missing || []).join(", ");
+          return;
+        }
+        const c = d.config || {},
+          a = d.app && d.app.running ? d.app : null,
+          last = d.app;
+        if (document.activeElement !== $("#gm-addr") && !$("#gm-addr").value)
+          $("#gm-addr").value = d.address || "";
+        $$("#p-garmin [data-gm]").forEach((inp) => {
+          const k = inp.dataset.gm;
+          if (k === gmEdit) return;
+          const v = c[k];
+          if (inp.type === "range") {
+            if (v != null) {
+              inp.value = v;
+              inp.parentElement.querySelector("output").textContent = fmt(
+                +v,
+                inp.step,
+              );
+            }
+          } else inp.checked = !!v;
+        });
+        $$("#gm-mode button").forEach((b) =>
+          b.classList.toggle("on", b.dataset.v === c.mode),
+        );
+        const st = a ? a.status : last ? last.status : "Not connected",
+          bad = /^Erreur/.test(st);
+        $("#gm-status").innerHTML =
+          `<span class="pill ${a && a.connected ? "g" : bad ? "r" : a ? "o" : ""}">${esc(st)}</span>`;
+        $("#gm-rate").textContent = a && a.connected ? a.rate.toFixed(1) : "—";
+        $("#gm-mouse").textContent =
+          !a || !a.connected
+            ? "—"
+            : a.calibrating
+              ? "calibration"
+              : !a.enabled
+                ? "en pause (button)"
+                : a.paused
+                  ? "paused (arm lowered)"
+                  : a.frozen
+                    ? "frozen (tap)"
+                    : "active (" + c.mode + ")";
+        $("#gm-clicks").textContent = a ? a.clicks : 0;
+        const r = (a && a.range_deg) || d.range_deg;
+        $("#gm-range").textContent = r
+          ? `right ${r.right}° · left ${r.left}° · up ${r.up}° · down ${r.down}°`
+          : "not calibrated yet";
+        $("#gm-connect").disabled = !!a;
+        $("#gm-disconnect").disabled = !a;
+        $("#gm-recenter").disabled = $("#gm-pause").disabled = !a;
+        $("#gm-pause").textContent = a && !a.enabled ? "Resume" : "Pause";
+        let pr,
+          sub = "",
+          err = "",
+          steps = "";
+        if (a && a.calibrating) {
+          const k = a.calib;
+          pr = k.prompt;
+          sub = a.connected
+            ? `Step ${k.step} / ${k.steps} · hold still for about 1 second`
+            : "Waiting for the watch…";
+          err = k.error;
+          if (k.steps > 1)
+            steps = Array.from(
+              { length: k.steps },
+              (_, i) =>
+                `<i class="${i < k.step - 1 ? "done" : i === k.step - 1 ? "cur" : ""}"></i>`,
+            ).join("");
+        } else if (a) {
+          const off = a.paused || !a.enabled;
+          pr = `Mouse ${off ? "paused" : "active"} (${c.mode})`;
+          sub = "tilt to move · double-tap to click · lower arm to pause";
+        } else {
+          pr =
+            d.full_next || !d.calibrated
+              ? "Guided 5-pose calibration when connecting"
+              : "On connection: relearn neutral position (1 second)";
+          sub = "neutral, right, left, hand up, hand down";
+        }
+        $("#gm-prompt").textContent = pr;
+        $("#gm-step").textContent = sub;
+        $("#gm-err").textContent = err || "";
+        $("#gm-steps").innerHTML = steps;
+        const ms = (d.messages || []).slice().reverse();
+        $("#gm-msgs").innerHTML = ms.length
+          ? ms
+              .map(
+                (x) =>
+                  `<tr><td class="mono" style="white-space:nowrap">${new Date(x.t * 1000).toLocaleTimeString()}</td><td>${esc(x.text)}</td></tr>`,
+              )
+              .join("")
+          : '<tr><td class="empty">—</td></tr>';
+        drawGarmin(a, c);
+      }
+      // ---------- boucles
+      function refreshState() {
+        fetch("/api/state")
+          .then((r) => r.json())
+          .then((j) => {
+            S = j;
+            renderState();
+            if (page === "gestures") fillGestures();
+          })
+          .catch(() => {});
+      }
+      setInterval(refreshState, 1000);
+      refreshState();
+      function connect() {
+        const es = new EventSource("/api/stream");
+        es.onmessage = (e) => {
+          T = JSON.parse(e.data);
+          renderTelemetry();
+        };
+        es.onerror = () => {
+          es.close();
+          $("#side-dot").className = "dot";
+          $("#side-status").textContent = "MousePods is stopped";
+          setTimeout(connect, 1500);
+        };
+      }
+      connect();
+    </script>
+  </body>
+</html>

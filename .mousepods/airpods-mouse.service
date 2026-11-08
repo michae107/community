@@ -1,0 +1,17 @@
+# Installed by install.py, which resolves @PROJECT@ relative to the user's home.
+[Unit]
+Description=MousePods AirPods mouse controller
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+WorkingDirectory=@PROJECT@
+ExecStart="@PROJECT@/.venv/bin/python" -B airpods_mouse_controller.py
+ExecStartPost=/usr/bin/python3 -B map_primary_display.py
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=graphical-session.target

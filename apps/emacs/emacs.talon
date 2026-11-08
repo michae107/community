@@ -213,7 +213,7 @@ unhighlight all:
     user.emacs_prefix()
     user.emacs("unhighlight-regexp")
 
-recenter:
+recenter buffer:
     user.emacs_prefix()
     user.emacs("recenter-top-bottom")
 (center | [center] <number_small> from) top:

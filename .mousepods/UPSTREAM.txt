@@ -1,0 +1,10 @@
+MousePods by Matteo Gaudioso (starman-tech)
+https://github.com/starman-tech/mousepods
+Upstream commit: dd70e4f872aa0b0ba58c3f50feb9909abfd12dae
+
+Local changes: English interface, reconnect resume, reliable recentering,
+screen-edge movement memory, primary-monitor mapping, and portable Talon setup.
+Source and tests are included; upstream Markdown documentation is not copied.
+Original source license and attribution are in LICENSE and NOTICE.
+Upstream public capture fixtures retain their CC BY 4.0 license in
+docs/LICENSE-CC-BY-4.0.txt. Private recordings are excluded from Git.
