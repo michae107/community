@@ -1,3 +1,4 @@
+import faulthandler
 import json
 import logging
 import time
@@ -9,9 +10,14 @@ from talon import Module, actions, app, clip
 
 from .anti_hang import (
     DEFAULT_RESPONSE_TIMEOUT_SECONDS,
+    ClipboardOwnerNotResponding,
     read_process_text,
+    save_clipboard,
     wait_for_json_response,
+    write_clipboard,
+    write_clipboard_text_confirmed,
 )
+
 mod = Module()
 _request_in_flight = False
 
@@ -28,6 +34,12 @@ if not any(
 logger.setLevel(logging.INFO)
 logger.propagate = False
 
+# If a request is still running this long after it started, something below
+# the Python deadlines is stuck (native code). faulthandler's watchdog thread
+# dumps every thread's stack to this file without needing the main thread.
+_HANG_TRACE_SECONDS = 6.0
+_hang_trace_file = open(Path.home() / ".talon" / "rango-hang-traces.log", "a")
+
 
 def send_request_and_wait(command: dict) -> Any:
     """Send a command with a hard deadline and no re-entrant request queue."""
@@ -43,14 +55,19 @@ def send_request_and_wait(command: dict) -> Any:
     logger.info("request_started action=%s", action_name)
     try:
         json_message = json.dumps(command)
-        # Rango uses the clipboard as a temporary transport. Talon's native
-        # context preserves every clipboard format (including images), whereas
-        # reading and restoring only text leaves Rango's JSON behind whenever
-        # the clipboard contains non-text data or a bounded text read fails.
-        with clip.revert():
-            _set_transient_clipboard_text(json_message)
-            actions.user.rango_type_hotkey()
-            response = _read_json_response_until(deadline)
+        _hang_trace_file.write(f"\n--- watchdog armed for {action_name} at {time.ctime()} ---\n")
+        _hang_trace_file.flush()
+        faulthandler.dump_traceback_later(
+            _HANG_TRACE_SECONDS, repeat=False, file=_hang_trace_file
+        )
+        if app.platform == "linux":
+            response = _linux_round_trip(json_message, deadline)
+        else:
+            # Talon's native context preserves every clipboard format.
+            with clip.revert():
+                _set_transient_clipboard_text(json_message)
+                actions.user.rango_type_hotkey()
+                response = _read_json_response_until(deadline)
         logger.info(
             "request_finished action=%s elapsed_ms=%d",
             action_name,
@@ -72,7 +89,50 @@ def send_request_and_wait(command: dict) -> Any:
         )
         raise
     finally:
+        faulthandler.cancel_dump_traceback_later()
         _request_in_flight = False
+
+
+def _linux_round_trip(json_message: str, deadline: float) -> dict[str, Any]:
+    """Clipboard round trip in which every step is a killable xclip process.
+
+    Talon's native clipboard calls block the main thread forever when the
+    clipboard owner stops answering, which froze all of Talon. Here each step
+    has its own hard timeout instead.
+    """
+    try:
+        saved = save_clipboard()
+    except ClipboardOwnerNotResponding as error:
+        # Claiming the clipboard below evicts the wedged owner, so the request
+        # can still work; only the old clipboard contents are lost.
+        logger.warning("clipboard_owner_not_responding detail=%s", error)
+        saved = None
+
+    try:
+        write_clipboard_text_confirmed(json_message, actions.sleep)
+        actions.user.rango_type_hotkey()
+        return _read_json_response_until(deadline)
+    finally:
+        _restore_clipboard(saved)
+
+
+def _restore_clipboard(saved: tuple[str, bytes] | None):
+    if saved is None:
+        restored = write_clipboard(b"")
+    else:
+        target, data = saved
+        restored = write_clipboard(data, target)
+    if not restored:
+        logger.warning("clipboard_restore_failed")
+
+
+def set_clipboard_text(text: str):
+    """Set clipboard text without risking a main-thread hang on Linux."""
+    if app.platform == "linux":
+        if not write_clipboard(text.encode("utf-8")):
+            logger.warning("clipboard_copy_failed")
+        return
+    clip.set_text(text)
 
 
 def _read_json_response_until(deadline: float) -> dict[str, Any]:

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from talon import actions
 
-from .command_server import send_request_and_wait
+from .command_server import send_request_and_wait, set_clipboard_text
 
 
 def handle_response(response: Any, request_action: dict):
@@ -28,7 +28,7 @@ def handle_response(response: Any, request_action: dict):
                 result = handle_response(response, request_action)
 
             case "copyToClipboard":
-                actions.clip.set_text(action["textToCopy"])
+                set_clipboard_text(action["textToCopy"])
 
             case "typeTargetCharacters":
                 actions.insert(request_action["target"]["mark"]["value"])

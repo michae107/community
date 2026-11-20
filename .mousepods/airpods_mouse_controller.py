@@ -389,7 +389,11 @@ class AAPClient:
 
     def connect(self):
         self.addr = self._pick()
-        if self.auto_connect and have_bluetoothctl() and "Connected: yes" not in bt_info(self.addr):
+        if have_bluetoothctl() and "Connected: yes" not in bt_info(self.addr):
+            if not self.auto_connect:
+                # opening the AAP socket would page the AirPods and bring the link up by itself:
+                # with auto_connect off, wait until the user has connected them
+                raise OSError(112, "AirPods not connected (auto_connect is off)")
             subprocess.run(["bluetoothctl", "connect", self.addr], capture_output=True, text=True,
                            timeout=20)
         self.pid = product_id(self.addr)
