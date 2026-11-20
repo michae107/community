@@ -10,7 +10,11 @@ from talon import Module, actions, app, clip
 
 from .anti_hang import (
     DEFAULT_RESPONSE_TIMEOUT_SECONDS,
+    TEXT_TARGETS,
+    WRITE_TIMEOUT_SECONDS,
     ClipboardOwnerNotResponding,
+    is_rango_message,
+    own_clipboard,
     read_process_text,
     save_clipboard,
     wait_for_json_response,
@@ -113,15 +117,24 @@ def _linux_round_trip(json_message: str, deadline: float) -> dict[str, Any]:
         actions.user.rango_type_hotkey()
         return _read_json_response_until(deadline)
     finally:
-        _restore_clipboard(saved)
+        _restore_clipboard(saved, json_message)
 
 
-def _restore_clipboard(saved: tuple[str, bytes] | None):
+def _restore_clipboard(saved: dict[str, bytes] | None, request: str):
+    # Only put the old clipboard back over Rango's own message: if anything else
+    # copied during the command (a page's Copy button the click pressed), keep that.
+    current = read_process_text(time.perf_counter() + WRITE_TIMEOUT_SECONDS)
+    if not is_rango_message(current, request):
+        logger.info("clipboard_restore_skipped reason=changed_during_command")
+        return
     if saved is None:
         restored = write_clipboard(b"")
     else:
-        target, data = saved
-        restored = write_clipboard(data, target)
+        restored = own_clipboard(saved)
+        if not restored:
+            # Text at least, the way it was restored before.
+            text = next((saved[target] for target in TEXT_TARGETS if target in saved), None)
+            restored = text is not None and write_clipboard(text)
     if not restored:
         logger.warning("clipboard_restore_failed")
 

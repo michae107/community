@@ -12,10 +12,15 @@ no timeout, so one wedged owner froze Talon completely. A subprocess can be
 killed when its deadline passes; Talon's main thread cannot.
 """
 
+import base64
 import json
+import os
+import select
 import subprocess
+import tempfile
 import time
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any
 
 DEFAULT_RESPONSE_TIMEOUT_SECONDS = 2.0
@@ -32,11 +37,22 @@ WRITE_CONFIRM_TIMEOUT_SECONDS = 0.5
 XCLIP_BASE = ("xclip", "-selection", "clipboard")
 XCLIP_READ_COMMAND = (*XCLIP_BASE, "-out")
 
-# Only text is preserved. Restoring an image means leaving an `xclip -i`
-# daemon serving megabytes over INCR, which is the exact process that wedged
-# and froze both Talon and Firefox; in testing it also only served the image
-# once before returning empty data.
 TEXT_TARGETS = ("UTF8_STRING", "text/plain;charset=utf-8", "text/plain", "STRING")
+
+# Every format is saved and put back (images, copied files...), not just text.
+# The restore never uses `xclip -i`, which served megabytes over INCR and wedged
+# (freezing Talon and Firefox) when a requestor died mid-transfer, and served an
+# image only once. .helpers/clipboard_owner.py serves all the formats at once and
+# never blocks on one requestor. It runs in the system Python (it needs
+# python-xlib); the hidden folder keeps Talon from loading it as a module.
+PROTOCOL_TARGETS = frozenset(
+    ("TARGETS", "TIMESTAMP", "MULTIPLE", "SAVE_TARGETS", "DELETE", "INSERT_PROPERTY", "INSERT_SELECTION")
+)
+SAVE_TOTAL_TIMEOUT_SECONDS = 1.5
+SAVE_MAXIMUM_BYTES = 64 * 1024 * 1024
+OWNER_HELPER = Path(__file__).resolve().parent.parent / ".helpers" / "clipboard_owner.py"
+OWNER_PYTHON = "/usr/bin/python3"
+OWNER_START_TIMEOUT_SECONDS = 2.0
 
 
 class ClipboardOwnerNotResponding(RuntimeError):
@@ -110,8 +126,9 @@ def read_targets(
 def save_clipboard(
     *,
     runner: Callable[..., subprocess.CompletedProcess] = subprocess.run,
-) -> tuple[str, bytes] | None:
-    """Snapshot the clipboard as (target, data), bounded in time.
+    clock: Callable[[], float] = time.perf_counter,
+) -> dict[str, bytes] | None:
+    """Snapshot every clipboard format as {target: data}, bounded in time.
 
     Returns None when there is nothing to save. Raises
     ClipboardOwnerNotResponding when the owner does not answer, so the caller
@@ -121,22 +138,77 @@ def save_clipboard(
     targets = read_targets(runner=runner)
     if targets is None:
         raise ClipboardOwnerNotResponding("Clipboard owner did not answer TARGETS.")
-    if not targets:
-        return None
 
-    for target in TEXT_TARGETS:
-        if target not in targets:
+    deadline = clock() + SAVE_TOTAL_TIMEOUT_SECONDS
+    saved: dict[str, bytes] = {}
+    total = 0
+    for target in dict.fromkeys(targets):
+        if target in PROTOCOL_TARGETS:
             continue
-        result = _run_bounded(
-            (*XCLIP_BASE, "-t", target, "-out"),
-            SAVE_READ_TIMEOUT_SECONDS,
-            runner=runner,
-        )
+        remaining = min(SAVE_READ_TIMEOUT_SECONDS, deadline - clock())
+        result = _run_bounded((*XCLIP_BASE, "-t", target, "-out"), remaining, runner=runner)
         if result is None:
             raise ClipboardOwnerNotResponding(f"Clipboard owner did not send {target}.")
-        if result.returncode == 0:
-            return target, result.stdout
-    return None
+        if result.returncode != 0:
+            continue
+        total += len(result.stdout)
+        if total > SAVE_MAXIMUM_BYTES:
+            break
+        saved[target] = result.stdout
+    return saved or None
+
+
+def own_clipboard(
+    formats: dict[str, bytes],
+    *,
+    helper: Path = OWNER_HELPER,
+    python: str = OWNER_PYTHON,
+    timeout: float = OWNER_START_TIMEOUT_SECONDS,
+) -> bool:
+    """Put every format on the clipboard through the owner helper, which then serves
+    them in the background until something else copies. False if it didn't start in time."""
+    payload = json.dumps(
+        {"formats": {name: base64.b64encode(data).decode("ascii") for name, data in formats.items()}}
+    )
+    descriptor, request_path = tempfile.mkstemp(prefix="rango-clipboard-", suffix=".json")
+    with os.fdopen(descriptor, "w", encoding="utf-8") as request_file:
+        request_file.write(payload)
+    try:
+        helper_process = subprocess.Popen(
+            [python, "-I", str(helper), request_path],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            start_new_session=True,
+        )
+    except OSError:
+        os.unlink(request_path)
+        return False
+
+    # The helper prints "ok" once it owns the clipboard, then keeps running.
+    ready, _, _ = select.select([helper_process.stdout], [], [], timeout)
+    answer = helper_process.stdout.readline().strip() if ready else b""
+    helper_process.stdout.close()
+    if answer != b"ok":
+        helper_process.kill()
+        if os.path.exists(request_path):
+            os.unlink(request_path)
+        return False
+    return True
+
+
+def is_rango_message(text: str | None, request: str) -> bool:
+    """Whether the clipboard text is Rango's own request or a Rango response."""
+    if text is None:
+        return False
+    if text == request:
+        return True
+    try:
+        message = json.loads(text)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(message, dict) and message.get("type") == "response"
 
 
 def write_clipboard(
